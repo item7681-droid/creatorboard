@@ -1,13 +1,26 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { LogIn } from "lucide-react";
 
 export default function SignInPage() {
+  return (
+    <Suspense fallback={<SignInShell />}>
+      <SignInContent />
+    </Suspense>
+  );
+}
+
+function SignInContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
 
+  return <SignInShell error={error} />;
+}
+
+function SignInShell({ error }: { error?: string | null }) {
   return (
     <main className="wrap">
       <section className="panel panel-pad" style={{ maxWidth: 520, margin: "70px auto" }}>
