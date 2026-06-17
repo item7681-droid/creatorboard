@@ -11,6 +11,10 @@ type SavedResult = {
   finalTitle: string;
   finalThumbnailText: string;
   createdAt: string;
+  representativeCategory?: string;
+  interestTopic?: string;
+  recommendedKeywords?: string[];
+  recommendedCategories?: string | null;
 };
 
 export default function BoardPage() {
@@ -61,10 +65,16 @@ export default function BoardPage() {
           results.map((result) => (
             <Link className="panel panel-pad toolbar" href={`/board/${result.id}`} key={result.id}>
               <div>
-                <h3>{result.finalTitle}</h3>
-                <p className="muted" style={{ marginTop: 8 }}>
-                  {result.searchSummary} · {result.finalThumbnailText}
-                </p>
+                {result.recommendedCategories && (
+                  <div className="mbti-detail-card mbti-detail-category board-card-category">
+                    <span className="mbti-detail-label">추천 카테고리</span>
+                    <p>{result.recommendedCategories}</p>
+                  </div>
+                )}
+                <div className="board-diagnosis-meta">
+                  <span>대표 분류: {result.representativeCategory ?? result.searchSummary}</span>
+                  {result.interestTopic ? <span>관심 주제: {result.interestTopic}</span> : null}
+                </div>
               </div>
               <span className="btn btn-secondary">
                 <Pencil size={16} /> 수정

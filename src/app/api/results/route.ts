@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { desc, eq, and } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { authOptions, getUserIdByEmail } from "@/lib/auth/options";
 import { getDb } from "@/lib/db";
 import { diagnoses, generationSessions, savedResults } from "@/lib/db/schema";
+import { getCategoryLabelFromEnglish } from "@/lib/youtube/categories";
+import { getCategoriesByTopics } from "@/lib/mbti/table";
 
 const schema = z.object({
   generationSessionId: z.string().uuid(),
@@ -25,11 +27,28 @@ export async function GET() {
 
   const db = getDb();
   const rows = await db
-    .select()
+    .select({
+      id: savedResults.id,
+      searchSummary: savedResults.searchSummary,
+      finalTitle: savedResults.finalTitle,
+      finalThumbnailText: savedResults.finalThumbnailText,
+      createdAt: savedResults.createdAt,
+      representativeCategory: diagnoses.knownField,
+      interestTopic: diagnoses.interestTopic,
+      recommendedKeywords: generationSessions.recommendedKeywords
+    })
     .from(savedResults)
+    .innerJoin(generationSessions, eq(savedResults.generationSessionId, generationSessions.id))
+    .innerJoin(diagnoses, eq(generationSessions.diagnosisId, diagnoses.id))
     .where(and(eq(savedResults.userId, userId), eq(savedResults.isDeleted, false)))
     .orderBy(desc(savedResults.createdAt));
-  return NextResponse.json({ results: rows });
+  return NextResponse.json({
+    results: rows.map((row) => ({
+      ...row,
+      representativeCategory: getCategoryLabelFromEnglish(row.representativeCategory),
+      recommendedCategories: getCategoriesByTopics(row.representativeCategory, row.interestTopic)
+    }))
+  });
 }
 
 export async function POST(request: Request) {

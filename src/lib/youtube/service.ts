@@ -6,7 +6,7 @@ import type { VideoCandidate } from "./types";
 
 const CACHE_DAYS = 7;
 const DEFAULT_VIDEO_FORMAT = "midform";
-const MIDFORM_MIN_SECONDS = 180;
+const MIDFORM_MIN_SECONDS = 60;
 const EXCLUDED_VIDEO_KEYWORDS = [
   "연예인",
   "셀럽",
@@ -47,8 +47,6 @@ const EXCLUDED_CHANNEL_KEYWORDS = [
   "mnet",
   "딩고",
   "dingo",
-  "스튜디오",
-  "studio",
   "뉴스",
   "news",
   "한예슬",
@@ -92,9 +90,8 @@ export async function getVideoCandidates(
       return cached.map(mapCacheRow);
     }
 
-    const fetched = apiKey
-      ? await fetchYouTubeCandidates(keywords, 50, categoryId, apiKey)
-      : getCuratedVideos(keyword, 50);
+    if (!apiKey) return [];
+    const fetched = await fetchYouTubeCandidates(keywords, 50, categoryId, apiKey);
 
     if (fetched.length > 0) {
       const expiresAt = new Date(Date.now() + CACHE_DAYS * 24 * 60 * 60 * 1000);
@@ -130,9 +127,13 @@ export async function getVideoCandidates(
     return rows.map(mapCacheRow);
   } catch {
     if (apiKey) {
-      return fetchYouTubeCandidates(keywords, limit, categoryId, apiKey);
+      try {
+        return await fetchYouTubeCandidates(keywords, limit, categoryId, apiKey);
+      } catch {
+        return [];
+      }
     }
-    return getCuratedVideos(keyword, limit);
+    return [];
   }
 }
 
@@ -172,23 +173,24 @@ async function fetchYouTubeCandidates(
 }
 
 function buildSearchKeywords(keywords: string[]) {
+  const NOISE = [
+    /으로 월 \d+만원 벌기/g, /월 \d+만원 벌기/g, /초보가 시작하는 방법/g,
+    /콘텐츠 아이디어/g, /얼굴 없이 하는/g, /첫 영상 만들기/g,
+    /조회수 폭발한/g, /성공 채널 공통점/g, /월 수익 공개/g,
+  ];
+
   const candidates = keywords.flatMap((keyword) => {
     const value = keyword.trim();
     if (!value) return [];
 
-    const withoutGoal = value
-      .replace(/으로 월 \d+만원 벌기/g, "")
-      .replace(/초보가 시작하는 방법/g, "")
-      .replace(/콘텐츠/g, "")
-      .replace(/얼굴 없이 하는/g, "")
-      .replace(/첫 영상 만들기/g, "")
-      .replace(/유튜브/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-    const slashParts = withoutGoal.split("/").map((item) => item.trim()).filter(Boolean);
-    const normalized = withoutGoal.replaceAll("/", " ").trim();
+    let cleaned = value;
+    for (const pat of NOISE) cleaned = cleaned.replace(pat, "");
+    cleaned = cleaned.replace(/\s+/g, " ").trim();
 
-    return [value, normalized, ...slashParts];
+    const slashParts = cleaned.split("/").map((p) => p.trim()).filter(Boolean);
+    const short = cleaned.split(/\s+/).slice(0, 3).join(" ");
+
+    return [cleaned, short, ...slashParts].filter((s) => s.length >= 2);
   });
 
   return Array.from(new Set(candidates.filter(Boolean)));
@@ -206,7 +208,7 @@ async function fetchFromYouTube(
   searchUrl.searchParams.set("q", keyword);
   searchUrl.searchParams.set("type", "video");
   searchUrl.searchParams.set("order", "viewCount");
-  searchUrl.searchParams.set("videoDuration", "medium");
+  searchUrl.searchParams.set("videoDuration", "any");
   searchUrl.searchParams.set("maxResults", String(Math.min(maxResults, 50)));
   if (categoryId) {
     searchUrl.searchParams.set("videoCategoryId", categoryId);

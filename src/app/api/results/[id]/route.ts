@@ -4,14 +4,13 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { authOptions, getUserIdByEmail } from "@/lib/auth/options";
 import { getDb } from "@/lib/db";
-import { savedResults } from "@/lib/db/schema";
+import { diagnoses, generationSessions, savedResults } from "@/lib/db/schema";
+import { getCategoryLabelFromEnglish } from "@/lib/youtube/categories";
+import { getCategoriesByTopics } from "@/lib/mbti/table";
 
 const schema = z.object({
   finalTitle: z.string().min(1).optional(),
-  finalThumbnailText: z.string().min(1).optional(),
-  videoOutline: z.array(z.string()).min(1).optional(),
-  sevenDayPlan: z.array(z.object({ day: z.number(), title: z.string(), task: z.string() })).optional(),
-  memo: z.string().optional()
+  finalThumbnailText: z.string().min(1).optional()
 });
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -21,13 +20,33 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   const db = getDb();
   const [result] = await db
-    .select()
+    .select({
+      id: savedResults.id,
+      finalTitle: savedResults.finalTitle,
+      finalThumbnailText: savedResults.finalThumbnailText,
+      titleCandidates: savedResults.titleCandidates,
+      thumbnailCandidates: savedResults.thumbnailCandidates,
+      representativeCategory: diagnoses.knownField,
+      interestTopic: diagnoses.interestTopic,
+      recommendedKeywords: generationSessions.recommendedKeywords,
+      status: generationSessions.status
+    })
     .from(savedResults)
+    .innerJoin(generationSessions, eq(savedResults.generationSessionId, generationSessions.id))
+    .innerJoin(diagnoses, eq(generationSessions.diagnosisId, diagnoses.id))
     .where(and(eq(savedResults.id, id), eq(savedResults.userId, userId), eq(savedResults.isDeleted, false)))
     .limit(1);
 
   if (!result) return NextResponse.json({ message: "결과를 찾을 수 없습니다." }, { status: 404 });
-  return NextResponse.json({ result });
+  const completedDay = parseInt(result.status?.replace("day-", "") ?? "1", 10);
+  return NextResponse.json({
+    result: {
+      ...result,
+      representativeCategory: getCategoryLabelFromEnglish(result.representativeCategory),
+      recommendedCategories: getCategoriesByTopics(result.representativeCategory, result.interestTopic),
+      completedDay
+    }
+  });
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {

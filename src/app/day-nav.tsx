@@ -54,7 +54,7 @@ export function DayNav() {
         const label = `DAY ${item.day}`;
         const active =
           (item.day === 1 && pathname === "/diagnosis/result") ||
-                    (item.day === 2 && (pathname === "/videos" || pathname === "/generate")) ||
+          (item.day === 2 && (pathname === "/videos" || pathname === "/generate")) ||
           (item.day === 3 && pathname === "/thumbnail") ||
           (item.day === 4 && pathname === "/result") ||
           (item.day === 5 && pathname === "/shooting") ||

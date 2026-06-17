@@ -42,3 +42,10 @@ export function getCategoryLabel(categoryId?: string, fallback?: string) {
 export function getCategoryDisplayLabel(categoryId?: string, fallback?: string) {
   return getCategoryLabel(categoryId, fallback);
 }
+
+export function getCategoryLabelFromEnglish(englishLabel?: string) {
+  if (!englishLabel) return undefined;
+
+  const categoryId = Object.entries(categoryEnglishLabels).find(([, label]) => label === englishLabel)?.[0];
+  return categoryId ? getCategoryLabel(categoryId, englishLabel) : englishLabel;
+}

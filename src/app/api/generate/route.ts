@@ -4,9 +4,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { generationSessions, selectedVideos } from "@/lib/db/schema";
 import { hasEnv } from "@/lib/env";
-import { getOrCreateGuestSessionId } from "@/lib/session/guest";
 import { generateProfitTemplate } from "@/lib/templates/profit";
-import { assertCanGenerate, incrementGenerationUsage } from "@/lib/usage/limits";
 import { getCuratedVideos } from "@/lib/youtube/curated";
 import { getCachedVideosByIds } from "@/lib/youtube/service";
 import type { VideoCandidate } from "@/lib/youtube/types";
@@ -19,7 +17,6 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   const body = schema.parse(await request.json());
-  const sessionId = await getOrCreateGuestSessionId();
 
   if (!hasEnv("DATABASE_URL")) {
     const curated = getCuratedVideos(body.keyword ?? "초보 유튜브", 15);
@@ -37,8 +34,6 @@ export async function POST(request: Request) {
       demoMode: true
     });
   }
-
-  await assertCanGenerate({ sessionId });
 
   const videos = await getCachedVideosByIds(body.videoIds);
   if (videos.length !== 3) {
@@ -60,7 +55,6 @@ export async function POST(request: Request) {
     .where(eq(generationSessions.id, body.generationSessionId));
 
   const generated = generateProfitTemplate(videos);
-  await incrementGenerationUsage({ sessionId });
 
   return NextResponse.json({
     selectedVideos: videos,

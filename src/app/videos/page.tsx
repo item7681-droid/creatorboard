@@ -267,7 +267,13 @@ export default function VideosPage() {
         </form>
       </section>
 
-      {!hasSavedApiKey ? null : loading ? (
+      {!hasSavedApiKey ? (
+        <div className="panel panel-pad" style={{ textAlign: "center", padding: "48px 24px", color: "var(--muted)" }}>
+          <KeyRound size={32} style={{ marginBottom: 12, opacity: 0.5 }} />
+          <p style={{ fontSize: "1rem", fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>API 키를 등록해주세요</p>
+          <p style={{ fontSize: "0.875rem" }}>위 안내를 따라 YouTube Data API 키를 발급하고 입력하면 영상 후보를 불러올 수 있습니다.</p>
+        </div>
+      ) : loading ? (
         <div className="panel panel-pad">
           <RefreshCw size={18} /> 영상 후보를 불러오는 중입니다.
         </div>
@@ -281,10 +287,21 @@ export default function VideosPage() {
                 제목, 썸네일 문구, 썸네일 사진, 초반 30초가 참고하기 좋은 영상을 우선 선택하면 됩니다.
               </p>
             </div>
-            <div className={`selection-count ${ready ? "ready" : ""}`}>
-              <Sparkles size={18} />
-              <strong>{selected.length}/3</strong>
-              <span>{ready ? "문구 조합 준비 완료" : "선택 중"}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button
+                className="btn btn-secondary"
+                disabled={loading || videos.length === 0}
+                onClick={showOtherCandidates}
+                type="button"
+                style={{ whiteSpace: "nowrap" }}
+              >
+                <RefreshCw size={16} /> 다른 후보 보기
+              </button>
+              <div className={`selection-count ${ready ? "ready" : ""}`}>
+                <Sparkles size={18} />
+                <strong>{selected.length}/3</strong>
+                <span>{ready ? "문구 조합 준비 완료" : "선택 중"}</span>
+              </div>
             </div>
           </section>
           <div className="video-candidate-grid">

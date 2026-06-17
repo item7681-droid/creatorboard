@@ -442,6 +442,8 @@ export default function DiagnosisPage() {
       availableTime: bonusTime,
       avoidTopic: "",
       shootingBurden: 3,
+      mbtiType,
+      categories: entry.categories,
     };
 
     try {
@@ -451,9 +453,13 @@ export default function DiagnosisPage() {
         body: JSON.stringify(payload),
       });
       const data = response.ok ? await response.json() : {};
+      const recommendedKeywords =
+        (data.recommendedKeywords as string[] | undefined)?.length
+          ? data.recommendedKeywords
+          : buildKeywordsFromMBTI(mbtiType, entry.categories.split(/,\s*/), entry.interestTopic);
       localStorage.setItem(
         "creatorboard_diagnosis",
-        JSON.stringify({ ...payload, ...data, mbtiType, mbtiEntry: entry, answers, categoryId: entry.categoryId })
+        JSON.stringify({ ...payload, ...data, recommendedKeywords, mbtiType, mbtiEntry: entry, answers, categoryId: entry.categoryId })
       );
     } catch {
       const now = Date.now();
@@ -466,13 +472,7 @@ export default function DiagnosisPage() {
           answers,
           diagnosisId: `demo-${now}`,
           generationSessionId: `demo-session-${now}`,
-          recommendedKeywords: [
-            `${entry.interestTopic} 초보 영상`,
-            `${entry.interestTopic} 시작 방법`,
-            `${entry.interestTopic} 체크리스트`,
-            `${entry.interestTopic} 수익형 콘텐츠`,
-            `${entry.firstVideo}`,
-          ],
+          recommendedKeywords: buildKeywordsFromMBTI(mbtiType, entry.categories.split(/,\s*/), entry.interestTopic),
           demoMode: true,
         })
       );

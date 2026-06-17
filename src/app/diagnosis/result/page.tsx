@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Copy, Target, BookmarkPlus, LogIn } from "lucide-react";
+import { ArrowRight, Check, Copy, ExternalLink, Target, BookmarkPlus, LogIn } from "lucide-react";
 import { useSession, signIn } from "next-auth/react";
 import { cacheCompletedDay, markCompletedDay } from "@/lib/flow/progress";
 import { getCategoryLabel } from "@/lib/youtube/categories";
@@ -76,9 +76,20 @@ export default function DiagnosisResultPage() {
   const firstKeyword = entry?.firstVideo ?? displayKeywords[0] ?? `${koreanCategory} 첫 영상`;
   const sevenDayPlan = createSevenDayPlan(koreanCategory, diagnosis.interestTopic, firstKeyword);
 
-  const profilePrompt = `나는 유튜브 첫 영상을 준비하고 있습니다.${mbti ? ` 내 콘텐츠 유형은 ${mbti}(${entry?.title})입니다.` : ""} 주제는 "${firstKeyword}"이고, 방향은 "${koreanCategory}"입니다.
-초보자가 바로 사용할 수 있게 채널명 10개, 소개 문구 5개, 프로필 이미지 아이디어 5개를 추천해주세요.
-너무 전문가처럼 보이기보다 처음 시작하는 사람이 꾸준히 운영할 수 있는 느낌이면 좋겠습니다.`;
+  const profilePrompt = `당신은 세계 최고 수준의 유튜브 채널 브랜딩 전략가이자 마케팅 전문가입니다.
+
+나는 유튜브를 처음 시작하는 초보 크리에이터입니다.${mbti ? `\n콘텐츠 유형: ${mbti}형 — ${entry?.title}` : ""}
+채널 주제: "${firstKeyword}"
+콘텐츠 방향: ${koreanCategory}
+스타일: 전문가처럼 보이기보다 처음 시작하는 사람이 꾸준히 운영할 수 있는 친근한 느낌
+
+다음 항목을 구체적으로 컨설팅해주세요.
+
+1. 채널명 5개 — 짧고 기억하기 쉬운 이름, 각 이름에 선택 이유 한 줄 포함
+2. 채널 핸들 5개 — @로 시작하는 영문/한글 핸들, 채널명과 연결되는 것으로
+3. 채널 설명 2개 — 시청자가 구독 버튼을 누르고 싶어지는 소개 문구 (3~4문장)
+4. 프로필 사진 아이디어 3개 — 얼굴이 부담스러운 경우도 포함해서 제안
+5. 배너 이미지 아이디어 3개 — 채널의 분위기와 주제가 한눈에 보이는 구성 제안`;
 
   async function copyPrompt() {
     await navigator.clipboard.writeText(profilePrompt);
@@ -207,30 +218,38 @@ export default function DiagnosisResultPage() {
           <span>대표 분류</span>
           <strong>{koreanCategory}</strong>
         </div>
-        <p className="lead">
-          첫 주제는 &ldquo;{firstKeyword}&rdquo; 방향이 좋습니다.<br />
-          이미 겪은 일, 배운 것, 비교해본 것을 2분짜리 영상으로 작게 정리하세요.
-        </p>
-        <div className="result-summary-grid">
-          <div>
-            <span>추천 키워드</span>
-            <strong>{displayKeywords[0] ?? firstKeyword}</strong>
+
+        {displayKeywords.length > 0 && (
+          <div style={{ marginTop: 20 }}>
+            <p style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text)", marginBottom: 10 }}>
+              영상 검색에 사용되는 추천 키워드
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {displayKeywords.map((kw, i) => (
+                <span
+                  key={i}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: 20,
+                    background: "var(--panel-2)",
+                    border: "1px solid var(--line)",
+                    fontSize: "0.875rem",
+                    lineHeight: 1.4,
+                    color: "var(--text)",
+                  }}
+                >
+                  {kw}
+                </span>
+              ))}
+            </div>
           </div>
-          <div>
-            <span>첫 실행</span>
-            <strong>프로필 설정</strong>
-          </div>
-          <div>
-            <span>다음 단계</span>
-            <strong>영상 3개 선택</strong>
-          </div>
-        </div>
+        )}
       </section>
 
       {/* ── DAY 1 프로필 설정 ── */}
       <section className="panel panel-pad profile-guide">
         <div className="section-kicker">DAY 1</div>
-        <h2>오늘 먼저 할 일: 프로필을 설정해보세요.</h2>
+        <h2>오늘 먼저 할 일: <span style={{ color: "var(--mint)" }}>프로필</span>을 설정해보세요.</h2>
         <p className="lead" style={{ maxWidth: "none" }}>
           주제가 정해졌으면 주제에 맞는 채널명과 소개 문구, 프로필 이미지를 만들어 보세요.<br />
           완벽하게 만들 필요는 없습니다. 첫 영상을 올리다 보면 더 좋은 아이디어가 생기실 거예요.
@@ -247,20 +266,30 @@ export default function DiagnosisResultPage() {
           </div>
           <div className="prompt-copy">{profilePrompt}</div>
         </div>
+        <p style={{ marginTop: 12, color: "var(--amber)", fontSize: "0.875rem", lineHeight: 1.6 }}>
+          💡 GPT 답변을 받은 뒤, YouTube 사이트 접속 → 오른쪽 상단 아이콘 클릭 → 내 채널 보기 → 채널 맞춤설정에서 채널명·핸들·설명·프로필 사진·배너를 직접 설정할 수 있습니다.
+        </p>
         <div className="profile-guide-grid">
           <div className="profile-guide-item">
-            <h3>채널명</h3>
-            <p className="muted">{koreanCategory}{eul(koreanCategory)} 쉽게 시작하는 사람처럼 기억되는 짧은 이름을 씁니다.</p>
+            <h3>채널명 &amp; 핸들</h3>
+            <p className="muted">짧고 기억하기 쉬운 이름을 고르고, @핸들은 채널명과 연결되는 영문으로 설정합니다.</p>
           </div>
           <div className="profile-guide-item">
-            <h3>소개 문구</h3>
+            <h3>채널 설명</h3>
             <p className="muted">
-              &ldquo;{diagnosis.interestTopic}{eul(diagnosis.interestTopic)} 처음 시작하는 사람에게, 직접 해본 방법을 쉽게 정리합니다.&rdquo;
+              누가 왜 구독해야 하는지 3~4문장으로 씁니다. 첫 문장에 채널 주제와 타겟을 명확히 넣으세요.
             </p>
           </div>
           <div className="profile-guide-item">
-            <h3>프로필 이미지</h3>
-            <p className="muted">얼굴 사진이 부담되면 글자 로고, 심플한 아이콘, 밝은 배경의 대표 이미지를 씁니다.</p>
+            <h3>프로필 사진</h3>
+            <p className="muted">얼굴이 부담되면 글자 로고, 심플한 아이콘, 밝은 배경의 대표 이미지를 씁니다.</p>
+          </div>
+          <div className="profile-guide-item">
+            <h3>배너 이미지</h3>
+            <p className="muted">채널 주제와 업로드 주기를 한눈에 보여주는 배너로 첫인상을 잡습니다. 미리캔버스 무료 템플릿으로 직접 만들 수 있습니다.</p>
+            <a className="inline-link" href="https://www.miricanvas.com" target="_blank" rel="noreferrer">
+              미리캔버스 무료 템플릿 <ExternalLink size={14} />
+            </a>
           </div>
         </div>
       </section>

@@ -10,6 +10,8 @@ export default function GeneratePage() {
   const router = useRouter();
   const [generated, setGenerated] = useState<GeneratedPlan | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedTitle, setSelectedTitle] = useState("");
+  const [selectedThumb, setSelectedThumb] = useState("");
   const diagnosis = useMemo(() => {
     if (typeof window === "undefined") return null;
     const raw = localStorage.getItem("creatorboard_diagnosis");
@@ -40,6 +42,12 @@ export default function GeneratePage() {
         if (!data.generated) throw new Error(data.message ?? "생성 실패");
         setGenerated(data.generated);
         localStorage.setItem("creatorboard_generated", JSON.stringify(data.generated));
+        const firstTitle = data.generated.titleCandidates[0] ?? "";
+        const firstThumb = data.generated.thumbnailCandidates[0] ?? "";
+        setSelectedTitle(firstTitle);
+        setSelectedThumb(firstThumb);
+        localStorage.setItem("creatorboard_final_title", firstTitle);
+        localStorage.setItem("creatorboard_final_thumbnail", firstThumb);
         cacheCompletedDay(2);
       })
       .catch((error) => alert(error.message))
@@ -55,6 +63,8 @@ export default function GeneratePage() {
       </main>
     );
   }
+
+  const canConfirm = Boolean(selectedTitle && selectedThumb && generated);
 
   return (
     <main className="wrap">
@@ -94,17 +104,26 @@ export default function GeneratePage() {
           title="제목 후보"
           items={generated?.titleCandidates ?? []}
           storageKey="creatorboard_final_title"
+          onSelect={setSelectedTitle}
         />
         <CandidatePanel
           eyebrow="썸네일 문구 5개"
           title="썸네일 문구 후보"
           items={generated?.thumbnailCandidates ?? []}
           storageKey="creatorboard_final_thumbnail"
+          onSelect={setSelectedThumb}
         />
       </div>
       <div className="actions actions-center">
-        <button className="btn btn-primary btn-large" onClick={() => router.push("/thumbnail")}>
-          <Check size={18} /> 문구 확정
+        <button
+          className="btn btn-primary btn-large"
+          disabled={!canConfirm}
+          onClick={() => router.push("/thumbnail")}
+        >
+          <Check size={18} />{" "}
+          {canConfirm
+            ? "문구 확정"
+            : "제목과 썸네일 문구를 각각 선택하세요"}
         </button>
       </div>
       <p className="next-step-note">다음 화면에서 선택한 제목과 썸네일 문구로 썸네일과 사진 구성안을 정리합니다.</p>
@@ -116,21 +135,26 @@ function CandidatePanel({
   eyebrow,
   title,
   items,
-  storageKey
+  storageKey,
+  onSelect
 }: {
   eyebrow: string;
   title: string;
   items: string[];
   storageKey: string;
+  onSelect: (value: string) => void;
 }) {
   const [active, setActive] = useState(items[0] ?? "");
 
   useEffect(() => {
-    if (items[0]) {
-      setActive(items[0]);
-      localStorage.setItem(storageKey, items[0]);
-    }
-  }, [items, storageKey]);
+    if (items[0]) setActive(items[0]);
+  }, [items]);
+
+  function select(item: string) {
+    setActive(item);
+    localStorage.setItem(storageKey, item);
+    onSelect(item);
+  }
 
   return (
     <section className="panel panel-pad">
@@ -141,10 +165,7 @@ function CandidatePanel({
           <button
             className={`choice ${active === item ? "active" : ""}`}
             key={item}
-            onClick={() => {
-              setActive(item);
-              localStorage.setItem(storageKey, item);
-            }}
+            onClick={() => select(item)}
           >
             <span className="choice-index">{index + 1}</span>
             <span>{item}</span>
