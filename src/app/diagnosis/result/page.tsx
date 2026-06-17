@@ -22,6 +22,7 @@ type DiagnosisResult = {
   categoryId?: string;
   interestTopic: string;
   recommendedKeywords: string[];
+  generationSessionId?: string;
   mbtiType?: string;
   mbtiEntry?: MBTIEntry;
 };
@@ -30,13 +31,34 @@ export default function DiagnosisResultPage() {
   const router = useRouter();
   const [diagnosis, setDiagnosis] = useState<DiagnosisResult | null>(null);
   const [copied, setCopied] = useState(false);
-  const [saveState, setSaveState] = useState<"idle" | "saved">("idle");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const { data: session } = useSession();
 
   useEffect(() => {
-    const raw = localStorage.getItem("creatorboard_diagnosis");
-    if (!raw) { router.replace("/diagnosis"); return; }
-    setDiagnosis(JSON.parse(raw));
+    async function loadDiagnosis() {
+      const raw = localStorage.getItem("creatorboard_diagnosis");
+      if (raw) {
+        setDiagnosis(JSON.parse(raw));
+        return;
+      }
+
+      const response = await fetch("/api/flow/current");
+      if (!response.ok) {
+        router.replace("/diagnosis");
+        return;
+      }
+
+      const data = await response.json();
+      if (!data.diagnosis) {
+        router.replace("/diagnosis");
+        return;
+      }
+
+      localStorage.setItem("creatorboard_diagnosis", JSON.stringify(data.diagnosis));
+      setDiagnosis(data.diagnosis);
+    }
+
+    loadDiagnosis();
   }, [router]);
 
   if (!diagnosis) {
@@ -60,12 +82,48 @@ export default function DiagnosisResultPage() {
     window.setTimeout(() => setCopied(false), 1600);
   }
 
-  function handleSave() {
+  async function handleSave() {
+    if (!diagnosis) return;
+
     if (!session) {
-      signIn("google");
+      signIn("google", { callbackUrl: "/diagnosis/result" });
       return;
     }
-    // DB 연결 후 실제 저장 로직 추가 예정
+
+    if (!diagnosis.generationSessionId) {
+      alert("저장할 진단 세션이 없습니다. 진단을 다시 진행해 주세요.");
+      return;
+    }
+
+    setSaveState("saving");
+    const titleCandidates = [firstKeyword, ...displayKeywords].filter(Boolean);
+    const thumbnailCandidates = [
+      diagnosis.interestTopic,
+      koreanCategory,
+      entry?.concept ?? firstKeyword
+    ].filter(Boolean);
+    const response = await fetch("/api/results", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        generationSessionId: diagnosis.generationSessionId,
+        searchSummary: `${diagnosis.knownField} / ${diagnosis.interestTopic}`,
+        finalTitle: firstKeyword,
+        finalThumbnailText: diagnosis.interestTopic,
+        titleCandidates,
+        thumbnailCandidates,
+        videoOutline: sevenDayPlan.map((day) => `DAY ${day.day}. ${day.title}: ${day.task}`),
+        sevenDayPlan,
+        memo: profilePrompt
+      })
+    });
+
+    if (!response.ok) {
+      setSaveState("idle");
+      alert("저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      return;
+    }
+
     setSaveState("saved");
   }
 
@@ -102,18 +160,20 @@ export default function DiagnosisResultPage() {
       <div className="save-banner">
         <div className="save-banner-text">
           <strong>진단 결과를 저장하면 내일 다시 이어서 할 수 있어요.</strong>
-          <span>{session ? "저장 기능은 DB 연결 후 활성화됩니다." : "Google 계정으로 로그인하면 결과가 보관됩니다."}</span>
+          <span>{session ? "지금 진단 결과와 7일 실행 플랜을 보드에 저장합니다." : "Google 계정으로 로그인하면 결과가 보관됩니다."}</span>
         </div>
         <button
           className={`btn ${saveState === "saved" ? "btn-secondary" : "btn-primary"} save-banner-btn`}
           type="button"
           onClick={handleSave}
-          disabled={saveState === "saved"}
+          disabled={saveState === "saving" || saveState === "saved"}
         >
           {saveState === "saved" ? (
             <><Check size={16} /> 저장됨</>
+          ) : saveState === "saving" ? (
+            <><BookmarkPlus size={16} /> 저장 중</>
           ) : session ? (
-            <><BookmarkPlus size={16} /> 저장하기 (준비 중)</>
+            <><BookmarkPlus size={16} /> 저장하기</>
           ) : (
             <><LogIn size={16} /> Google로 로그인 후 저장</>
           )}

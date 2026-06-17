@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { Check, Copy, ExternalLink, FileText, Mic, Puzzle, Wand2 } from "lucide-react";
+import { Check, Copy, ExternalLink, FileText, Mic, Puzzle } from "lucide-react";
 import type { GeneratedPlan } from "@/lib/templates/profit";
 import type { VideoCandidate } from "@/lib/youtube/types";
 

@@ -1,40 +1,92 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, RefreshCw, Sparkles } from "lucide-react";
+import { Check, ExternalLink, KeyRound, RefreshCw, Sparkles } from "lucide-react";
 import { getCategoryLabel } from "@/lib/youtube/categories";
 import type { VideoCandidate } from "@/lib/youtube/types";
+
+type DiagnosisFlow = {
+  knownField: string;
+  categoryId?: string;
+  recommendedKeywords: string[];
+};
 
 export default function VideosPage() {
   const router = useRouter();
   const [videos, setVideos] = useState<VideoCandidate[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const diagnosis = useMemo(() => {
-    if (typeof window === "undefined") return null;
-    const raw = localStorage.getItem("creatorboard_diagnosis");
-    return raw ? JSON.parse(raw) : null;
-  }, []);
+  const [apiKey, setApiKey] = useState("");
+  const [diagnosis, setDiagnosis] = useState<DiagnosisFlow | null>(null);
 
   useEffect(() => {
-    if (!diagnosis) {
-      router.replace("/diagnosis");
-      return;
+    if (typeof window !== "undefined") {
+      setApiKey(localStorage.getItem("creatorboard_youtube_api_key") ?? "");
     }
-    fetch("/api/videos", {
+  }, []);
+
+  const loadVideos = useCallback(async (key: string) => {
+    if (!diagnosis) return;
+    setLoading(true);
+    setSelected([]);
+    const response = await fetch("/api/videos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         keywords: diagnosis.recommendedKeywords,
-        categoryId: diagnosis.categoryId
+        categoryId: diagnosis.categoryId,
+        youtubeApiKey: key
       })
-    })
-      .then((res) => res.json())
-      .then((data) => setVideos(data.videos ?? []))
-      .finally(() => setLoading(false));
-  }, [diagnosis, router]);
+    });
+    const data = await response.json();
+    setVideos(data.videos ?? []);
+    setLoading(false);
+  }, [diagnosis]);
+
+  useEffect(() => {
+    async function restoreDiagnosis() {
+      const raw = localStorage.getItem("creatorboard_diagnosis");
+      if (raw) {
+        setDiagnosis(JSON.parse(raw));
+        return;
+      }
+
+      const response = await fetch("/api/flow/current");
+      if (!response.ok) {
+        router.replace("/diagnosis");
+        return;
+      }
+
+      const data = await response.json();
+      if (!data.diagnosis) {
+        router.replace("/diagnosis");
+        return;
+      }
+
+      localStorage.setItem("creatorboard_diagnosis", JSON.stringify(data.diagnosis));
+      setDiagnosis(data.diagnosis);
+    }
+
+    restoreDiagnosis();
+  }, [router]);
+
+  useEffect(() => {
+    if (!diagnosis) return;
+    loadVideos(localStorage.getItem("creatorboard_youtube_api_key") ?? "");
+  }, [diagnosis, loadVideos]);
+
+  function saveApiKey(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const key = apiKey.trim();
+    if (key) {
+      localStorage.setItem("creatorboard_youtube_api_key", key);
+    } else {
+      localStorage.removeItem("creatorboard_youtube_api_key");
+    }
+    loadVideos(key);
+  }
 
   function toggle(id: string) {
     setSelected((current) => {
@@ -60,10 +112,70 @@ export default function VideosPage() {
           <p className="eyebrow">DAY 2 · 레퍼런스 영상 · {categoryLabel}</p>
           <h1 style={{ fontSize: 46 }}>참고할 영상 3개를 고르세요.</h1>
           <p className="lead" style={{ maxWidth: "none" }}>
-            선택한 3개 영상의 제목과 썸네일 문구를 조합해 제목 추천 5개, 썸네일 문구 추천 5개를 만듭니다.
+            선택한 3개 영상의 제목, 썸네일 문구, 썸네일 사진, 초반 30초를 참고해서 다음 단계에서 제목과 썸네일 문구를 조합합니다.
           </p>
         </div>
       </div>
+
+      <section className="panel panel-pad plan-section">
+        <p className="eyebrow">YouTube Data API 키 설정</p>
+        <h2>내 API 키를 넣으면 실제 YouTube 영상 후보를 불러올 수 있습니다.</h2>
+        <div className="copy-stack muted" style={{ lineHeight: 1.7, marginTop: 14 }}>
+          <p>
+            CreatorBoard가 만든 공용 API 키를 모든 사용자에게 넣어두면 키가 노출되거나, 하루 사용량이 한 번에 소진될 수 있습니다. 그래서
+            보안과 안정성을 위해 사용자가 각자 Google Cloud에서 발급한 API 키를 넣어 쓰는 구조가 안전합니다.
+          </p>
+          <p>
+            입력한 키는 영상 후보를 불러오는 요청에만 사용하고, DB에는 저장하지 않습니다. 이 브라우저에서 다시 쓰기 쉽도록 내 컴퓨터의
+            localStorage에만 보관됩니다.
+          </p>
+        </div>
+
+        <div className="api-guide-grid">
+          <div className="day-card">
+            <h3>1. Google Cloud Console 접속</h3>
+            <p className="muted">
+              Google 계정으로 로그인한 뒤 새 프로젝트를 만들거나 기존 프로젝트를 선택합니다.
+            </p>
+            <a className="inline-link" href="https://console.cloud.google.com/" target="_blank" rel="noreferrer">
+              Google Cloud Console 열기 <ExternalLink size={14} />
+            </a>
+          </div>
+          <div className="day-card">
+            <h3>2. YouTube Data API v3 활성화</h3>
+            <p className="muted">API 및 서비스의 라이브러리에서 YouTube Data API v3를 검색하고 사용 버튼을 누릅니다.</p>
+          </div>
+          <div className="day-card">
+            <h3>3. API 키 생성</h3>
+            <p className="muted">사용자 인증 정보에서 API 키를 만들고, 생성된 키를 복사합니다.</p>
+          </div>
+          <div className="day-card">
+            <h3>4. API 제한 설정</h3>
+            <p className="muted">키 제한에서 API 제한을 선택하고 YouTube Data API v3만 허용하는 것을 권장합니다.</p>
+          </div>
+        </div>
+
+        <div className="notice" style={{ marginTop: 16 }}>
+          검색 API는 1회 100 units라 하루 약 100회 검색 가능합니다. 다만 영상 상세 조회를 같이 하면 실제 가능 횟수는 그보다 줄어듭니다.
+        </div>
+
+        <form className="api-key-form" onSubmit={saveApiKey}>
+          <label className="field">
+            <span>YouTube Data API 키</span>
+            <input
+              className="input"
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+              placeholder="AIza..."
+              type="password"
+            />
+          </label>
+          <button className="btn btn-primary" type="submit">
+            <KeyRound size={18} /> API 키 저장하고 영상 다시 불러오기
+          </button>
+        </form>
+      </section>
+
       {loading ? (
         <div className="panel panel-pad">
           <RefreshCw size={18} /> 영상 후보를 불러오는 중입니다.
@@ -86,10 +198,7 @@ export default function VideosPage() {
           </section>
           <div className="video-candidate-grid">
             {videos.map((video) => (
-              <article
-                className={`video-card ${selected.includes(video.id) ? "selected" : ""}`}
-                key={video.id}
-              >
+              <article className={`video-card ${selected.includes(video.id) ? "selected" : ""}`} key={video.id}>
                 <div className="thumb-wrap">
                   <Image className="thumb" src={video.thumbnailUrl} alt="" width={480} height={270} />
                   <span className="duration-badge">{formatDuration(video.durationSeconds)}</span>

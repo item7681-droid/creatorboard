@@ -924,6 +924,34 @@ h3 {
   color: #ccfbf1;
 }
 
+.api-guide-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
+.api-guide-grid .day-card {
+  min-height: 150px;
+}
+
+.inline-link {
+  align-items: center;
+  color: #67e8f9;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.api-key-form {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-top: 18px;
+}
+
 .thumbnail-reference-grid {
   display: grid;
   gap: 14px;
@@ -1479,9 +1507,15 @@ h3 {
   .profile-guide-grid,
   .result-summary-grid,
   .day-list,
+  .api-guide-grid,
   .thumbnail-reference-grid,
   .intro-why-grid,
   .intro-gain-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .api-key-form {
+    align-items: stretch;
     grid-template-columns: 1fr;
   }
 

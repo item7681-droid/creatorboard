@@ -4,7 +4,7 @@ import { desc, eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { authOptions, getUserIdByEmail } from "@/lib/auth/options";
 import { getDb } from "@/lib/db";
-import { generationSessions, savedResults } from "@/lib/db/schema";
+import { diagnoses, generationSessions, savedResults } from "@/lib/db/schema";
 
 const schema = z.object({
   generationSessionId: z.string().uuid(),
@@ -63,6 +63,19 @@ export async function POST(request: Request) {
     .update(generationSessions)
     .set({ userId, status: "saved", updatedAt: new Date() })
     .where(eq(generationSessions.id, body.generationSessionId));
+
+  const [generationSession] = await db
+    .select({ diagnosisId: generationSessions.diagnosisId })
+    .from(generationSessions)
+    .where(eq(generationSessions.id, body.generationSessionId))
+    .limit(1);
+
+  if (generationSession) {
+    await db
+      .update(diagnoses)
+      .set({ userId })
+      .where(eq(diagnoses.id, generationSession.diagnosisId));
+  }
 
   return NextResponse.json({ result: saved });
 }

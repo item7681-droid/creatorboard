@@ -1,7 +1,6 @@
 import { and, desc, eq, gt, inArray } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { videoCache } from "@/lib/db/schema";
-import { hasEnv } from "@/lib/env";
 import { getCuratedVideos } from "./curated";
 import type { VideoCandidate } from "./types";
 
@@ -10,10 +9,12 @@ const CACHE_DAYS = 7;
 export async function getVideoCandidates(
   keywords: string[],
   limit = 15,
-  categoryId?: string
+  categoryId?: string,
+  apiKeyOverride?: string
 ): Promise<VideoCandidate[]> {
   const keyword = keywords[0] ?? "초보 유튜브";
   const cacheKey = categoryId ? `${keyword}::category:${categoryId}` : keyword;
+  const apiKey = normalizeApiKey(apiKeyOverride) ?? normalizeApiKey(process.env.YOUTUBE_API_KEY);
 
   try {
     const db = getDb();
@@ -29,9 +30,7 @@ export async function getVideoCandidates(
       return cached.map(mapCacheRow);
     }
 
-    const fetched = hasEnv("YOUTUBE_API_KEY")
-      ? await fetchFromYouTube(keyword, 50, categoryId)
-      : getCuratedVideos(keyword, 50);
+    const fetched = apiKey ? await fetchFromYouTube(keyword, 50, categoryId, apiKey) : getCuratedVideos(keyword, 50);
 
     const expiresAt = new Date(Date.now() + CACHE_DAYS * 24 * 60 * 60 * 1000);
     await db
@@ -64,6 +63,9 @@ export async function getVideoCandidates(
 
     return rows.map(mapCacheRow);
   } catch {
+    if (apiKey) {
+      return fetchFromYouTube(keyword, limit, categoryId, apiKey);
+    }
     return getCuratedVideos(keyword, limit);
   }
 }
@@ -74,10 +76,12 @@ export async function getCachedVideosByIds(ids: string[]) {
   return rows.map(mapCacheRow);
 }
 
-async function fetchFromYouTube(keyword: string, maxResults: number, categoryId?: string): Promise<VideoCandidate[]> {
-  const apiKey = process.env.YOUTUBE_API_KEY;
-  if (!apiKey) return getCuratedVideos(keyword, maxResults);
-
+async function fetchFromYouTube(
+  keyword: string,
+  maxResults: number,
+  categoryId: string | undefined,
+  apiKey: string
+): Promise<VideoCandidate[]> {
   const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search");
   searchUrl.searchParams.set("key", apiKey);
   searchUrl.searchParams.set("part", "snippet");
@@ -163,4 +167,10 @@ function parseDuration(iso: string) {
   const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
   if (!match) return 0;
   return Number(match[1] ?? 0) * 3600 + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0);
+}
+
+function normalizeApiKey(value?: string | null) {
+  const key = value?.trim();
+  if (!key || key.startsWith("YOUR_")) return null;
+  return key;
 }

@@ -36,6 +36,7 @@ type MBTIEntry = {
 
 // ─── 질문 데이터 ──────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const AXIS_LABELS: Record<Axis, string> = {
   IE: "정보형 vs 경험형",
   SN: "실용형 vs 상상형",
