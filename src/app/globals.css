@@ -936,13 +936,25 @@ h3 {
 
 .api-guide-grid {
   display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
   margin-top: 18px;
 }
 
 .api-guide-grid .day-card {
-  min-height: 150px;
+  align-content: start;
+  gap: 18px;
+  min-height: 190px;
+  padding: 18px;
+}
+
+.api-guide-grid .day-card h3 {
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.api-guide-grid .day-card .muted {
+  line-height: 1.75;
 }
 
 .inline-link {
@@ -1518,7 +1530,6 @@ h3 {
   .profile-guide-grid,
   .result-summary-grid,
   .day-list,
-  .api-guide-grid,
   .thumbnail-reference-grid,
   .intro-why-grid,
   .intro-gain-grid {
@@ -1558,6 +1569,10 @@ h3 {
 
   .video-candidate-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .api-guide-grid {
+    grid-template-columns: 1fr;
   }
 }
 

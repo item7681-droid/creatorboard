@@ -21,16 +21,26 @@ export default function VideosPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiKey, setApiKey] = useState("");
+  const [hasSavedApiKey, setHasSavedApiKey] = useState(false);
   const [diagnosis, setDiagnosis] = useState<DiagnosisFlow | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setApiKey(localStorage.getItem("creatorboard_youtube_api_key") ?? "");
+      const savedKey = localStorage.getItem("creatorboard_youtube_api_key") ?? "";
+      setApiKey(savedKey);
+      setHasSavedApiKey(Boolean(savedKey.trim()));
     }
   }, []);
 
   const loadVideos = useCallback(async (key: string) => {
     if (!diagnosis) return;
+    if (!key.trim()) {
+      setVideos([]);
+      setSelected([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setSelected([]);
     const response = await fetch("/api/videos", {
@@ -90,6 +100,7 @@ export default function VideosPage() {
     } else {
       localStorage.removeItem("creatorboard_youtube_api_key");
     }
+    setHasSavedApiKey(Boolean(key));
     loadVideos(key);
   }
 
@@ -139,25 +150,57 @@ export default function VideosPage() {
 
         <div className="api-guide-grid">
           <div className="day-card">
-            <h3>1. Google Cloud Console 접속</h3>
+            <h3>1. Google 계정 로그인</h3>
             <p className="muted">
-              Google 계정으로 로그인한 뒤 새 프로젝트를 만들거나 기존 프로젝트를 선택합니다.
+              Google 계정으로 로그인합니다.<br />
+              이후 새 프로젝트를 선택합니다.
             </p>
             <a className="inline-link" href="https://console.cloud.google.com/" target="_blank" rel="noreferrer">
               Google Cloud Console 열기 <ExternalLink size={14} />
             </a>
           </div>
           <div className="day-card">
-            <h3>2. YouTube Data API v3 활성화</h3>
-            <p className="muted">API 및 서비스의 라이브러리에서 YouTube Data API v3를 검색하고 사용 버튼을 누릅니다.</p>
+            <h3>2. 새 프로젝트 만들기</h3>
+            <p className="muted">
+              상단 바에서 프로젝트 선택을 클릭합니다.<br />
+              새 프로젝트를 누릅니다.<br />
+              프로젝트 이름은 youtube-creatorboard처럼 영문으로 입력합니다.<br />
+              만들기를 클릭한 뒤 잠시 기다립니다.
+            </p>
           </div>
           <div className="day-card">
-            <h3>3. API 키 생성</h3>
-            <p className="muted">사용자 인증 정보에서 API 키를 만들고, 생성된 키를 복사합니다.</p>
+            <h3>3. YouTube Data API v3 활성화</h3>
+            <p className="muted">
+              API 및 서비스 → 라이브러리로 이동합니다.<br />
+              YouTube Data API v3를 선택합니다.<br />
+              사용 버튼을 클릭합니다.
+            </p>
+            <a
+              className="inline-link"
+              href="https://console.cloud.google.com/apis/library/youtube.googleapis.com?project=creatorboard-499111"
+              target="_blank"
+              rel="noreferrer"
+            >
+              YouTube Data API v3 열기 <ExternalLink size={14} />
+            </a>
           </div>
           <div className="day-card">
-            <h3>4. API 제한 설정</h3>
-            <p className="muted">키 제한에서 API 제한을 선택하고 YouTube Data API v3만 허용하는 것을 권장합니다.</p>
+            <h3>4. API 키 생성</h3>
+            <p className="muted">
+              API 및 서비스 → 사용자 인증 정보로 이동합니다.<br />
+              + 사용자 인증 정보 만들기 → API 키 만들기를 클릭합니다.<br />
+              이름은 youtube-creatorboard처럼 프로젝트 이름과 동일하게 작성합니다.<br />
+              API 제한사항에서 YouTube Data API v3를 선택합니다.<br />
+              확인 → 만들기를 누른 뒤 API 키를 복사합니다.
+            </p>
+            <a
+              className="inline-link"
+              href="https://console.cloud.google.com/apis/credentials?project=creatorboard-499111"
+              target="_blank"
+              rel="noreferrer"
+            >
+              사용자 인증 정보 열기 <ExternalLink size={14} />
+            </a>
           </div>
         </div>
 
@@ -177,12 +220,12 @@ export default function VideosPage() {
             />
           </label>
           <button className="btn btn-primary" type="submit">
-            <KeyRound size={18} /> API 키 저장하고 영상 다시 불러오기
+            <KeyRound size={18} /> API 키 저장하고 영상 불러오기
           </button>
         </form>
       </section>
 
-      {loading ? (
+      {!hasSavedApiKey ? null : loading ? (
         <div className="panel panel-pad">
           <RefreshCw size={18} /> 영상 후보를 불러오는 중입니다.
         </div>
