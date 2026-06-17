@@ -8,6 +8,9 @@ import { cacheCompletedDay, markCompletedDay } from "@/lib/flow/progress";
 import { getCategoryLabel } from "@/lib/youtube/categories";
 import type { VideoCandidate } from "@/lib/youtube/types";
 
+const CANDIDATE_PAGE_SIZE = 10;
+const LOCAL_SWAP_LIMIT = 5;
+
 type DiagnosisFlow = {
   knownField: string;
   categoryId?: string;
@@ -23,7 +26,8 @@ export default function VideosPage() {
   const [apiKey, setApiKey] = useState("");
   const [hasSavedApiKey, setHasSavedApiKey] = useState(false);
   const [diagnosis, setDiagnosis] = useState<DiagnosisFlow | null>(null);
-
+  const [candidateOffset, setCandidateOffset] = useState(0);
+  const [candidateSwapCount, setCandidateSwapCount] = useState(0);
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedKey = localStorage.getItem("creatorboard_youtube_api_key") ?? "";
@@ -32,29 +36,42 @@ export default function VideosPage() {
     }
   }, []);
 
-  const loadVideos = useCallback(async (key: string) => {
+  const loadVideos = useCallback(async (key: string, forceRefresh = false) => {
     if (!diagnosis) return;
     if (!key.trim()) {
       setVideos([]);
       setSelected([]);
+      setCandidateOffset(0);
+      setCandidateSwapCount(0);
       setLoading(false);
       return;
     }
 
     setLoading(true);
     setSelected([]);
-    const response = await fetch("/api/videos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        keywords: diagnosis.recommendedKeywords,
-        categoryId: diagnosis.categoryId,
-        youtubeApiKey: key
-      })
-    });
-    const data = await response.json();
-    setVideos(data.videos ?? []);
-    setLoading(false);
+    setCandidateOffset(0);
+    setCandidateSwapCount(0);
+    try {
+      const response = await fetch("/api/videos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          keywords: diagnosis.recommendedKeywords,
+          categoryId: diagnosis.categoryId,
+          youtubeApiKey: key,
+          forceRefresh
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? `응답 오류: ${response.status}`);
+      setVideos(data.videos ?? []);
+    } catch (error) {
+      console.error("영상 로딩 실패:", error);
+      setVideos([]);
+      alert(`영상을 불러오지 못했습니다.\n\n${String(error)}\n\nAPI 키가 올바른지, YouTube Data API v3가 활성화되어 있는지 확인해주세요.`);
+    } finally {
+      setLoading(false);
+    }
   }, [diagnosis]);
 
   useEffect(() => {
@@ -104,6 +121,17 @@ export default function VideosPage() {
     loadVideos(key);
   }
 
+  function showOtherCandidates() {
+    if (candidateSwapCount >= LOCAL_SWAP_LIMIT - 1 || videos.length <= CANDIDATE_PAGE_SIZE) {
+      loadVideos(apiKey, true);
+      return;
+    }
+
+    setSelected([]);
+    setCandidateSwapCount((current) => current + 1);
+    setCandidateOffset((current) => (current + CANDIDATE_PAGE_SIZE) % videos.length);
+  }
+
   function toggle(id: string) {
     setSelected((current) => {
       if (current.includes(id)) return current.filter((item) => item !== id);
@@ -121,6 +149,7 @@ export default function VideosPage() {
 
   const categoryLabel = getCategoryLabel(diagnosis?.categoryId, diagnosis?.knownField);
   const ready = selected.length === 3;
+  const displayedVideos = getDisplayedVideos(videos, candidateOffset);
 
   return (
     <main className="wrap">
@@ -206,6 +235,19 @@ export default function VideosPage() {
 
         <div className="notice" style={{ marginTop: 16 }}>
           검색 API는 1회 100 units라 하루 약 100회 검색 가능합니다. 다만 영상 상세 조회를 같이 하면 실제 가능 횟수는 그보다 줄어듭니다.
+          <br />
+          <br />
+          남은 사용량은 Google Cloud Console에서 직접 확인할 수 있습니다.
+          <br />
+          <a
+            className="inline-link"
+            href="https://console.cloud.google.com/apis/api/youtube.googleapis.com/quotas"
+            target="_blank"
+            rel="noreferrer"
+          >
+            YouTube API 사용량 확인 <ExternalLink size={14} />
+          </a>
+          {" "}→ 프로젝트를 선택한 뒤 Queries per day 항목에서 오늘 소진량을 볼 수 있습니다.
         </div>
 
         <form className="api-key-form" onSubmit={saveApiKey}>
@@ -246,7 +288,7 @@ export default function VideosPage() {
             </div>
           </section>
           <div className="video-candidate-grid">
-            {videos.map((video) => (
+            {displayedVideos.map((video) => (
               <article className={`video-card ${selected.includes(video.id) ? "selected" : ""}`} key={video.id}>
                 <div className="thumb-wrap">
                   <Image className="thumb" src={video.thumbnailUrl} alt="" width={480} height={270} />
@@ -274,14 +316,37 @@ export default function VideosPage() {
             ))}
           </div>
           <div className="bottom-action-bar">
-            <button className="btn btn-primary btn-large" disabled={!ready} onClick={next}>
-              <Check size={18} /> {ready ? "문구 확정으로 이동" : `${selected.length}/3 선택 완료`}
+            <button
+              className="btn btn-secondary btn-large"
+              disabled={loading || videos.length === 0}
+              onClick={showOtherCandidates}
+              type="button"
+            >
+              <RefreshCw size={18} /> 다른 후보 보기
+            </button>
+            <button
+              className="btn btn-primary btn-large"
+              disabled={!ready}
+              onClick={next}
+            >
+              <Check size={18} />{" "}
+              {ready ? "문구 확정으로 이동" : `${selected.length}/3 선택 완료`}
             </button>
           </div>
         </>
       )}
     </main>
   );
+}
+
+function getDisplayedVideos(videos: VideoCandidate[], offset: number) {
+  if (videos.length <= CANDIDATE_PAGE_SIZE) return videos;
+
+  const start = offset % videos.length;
+  const end = start + CANDIDATE_PAGE_SIZE;
+  if (end <= videos.length) return videos.slice(start, end);
+
+  return [...videos.slice(start), ...videos.slice(0, end - videos.length)];
 }
 
 function formatCompactCount(value: number) {
