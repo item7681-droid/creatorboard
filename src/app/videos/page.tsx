@@ -4,12 +4,14 @@ import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ExternalLink, KeyRound, RefreshCw, Sparkles } from "lucide-react";
+import { cacheCompletedDay, markCompletedDay } from "@/lib/flow/progress";
 import { getCategoryLabel } from "@/lib/youtube/categories";
 import type { VideoCandidate } from "@/lib/youtube/types";
 
 type DiagnosisFlow = {
   knownField: string;
   categoryId?: string;
+  generationSessionId?: string;
   recommendedKeywords: string[];
 };
 
@@ -66,6 +68,9 @@ export default function VideosPage() {
       }
 
       localStorage.setItem("creatorboard_diagnosis", JSON.stringify(data.diagnosis));
+      if (typeof data.progress?.completedDay === "number") {
+        cacheCompletedDay(data.progress.completedDay);
+      }
       setDiagnosis(data.diagnosis);
     }
 
@@ -96,9 +101,10 @@ export default function VideosPage() {
     });
   }
 
-  function next() {
+  async function next() {
     localStorage.setItem("creatorboard_selected_videos", JSON.stringify(selected));
     localStorage.setItem("creatorboard_video_candidates", JSON.stringify(videos));
+    await markCompletedDay(2, diagnosis?.generationSessionId);
     router.push("/generate");
   }
 

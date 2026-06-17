@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { ExternalLink, ImageIcon, Save } from "lucide-react";
+import { cacheCompletedDay } from "@/lib/flow/progress";
 import type { GeneratedPlan } from "@/lib/templates/profit";
 
 export default function UploadPage() {
@@ -38,7 +39,8 @@ export default function UploadPage() {
         thumbnailCandidates: generated.thumbnailCandidates,
         videoOutline: generated.videoOutline,
         sevenDayPlan: generated.sevenDayPlan,
-        memo: uploadDescription
+        memo: uploadDescription,
+        completedDay: 7
       })
     });
     setSaving(false);
@@ -48,6 +50,7 @@ export default function UploadPage() {
       return;
     }
 
+    cacheCompletedDay(7);
     router.push("/board");
   }
 

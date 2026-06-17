@@ -15,7 +15,8 @@ const schema = z.object({
   thumbnailCandidates: z.array(z.string()).min(1),
   videoOutline: z.array(z.string()).min(1),
   sevenDayPlan: z.array(z.object({ day: z.number(), title: z.string(), task: z.string() })),
-  memo: z.string().optional()
+  memo: z.string().optional(),
+  completedDay: z.number().int().min(0).max(7).optional()
 });
 
 export async function GET() {
@@ -36,23 +37,24 @@ export async function POST(request: Request) {
   if (!userId) return NextResponse.json({ message: "로그인이 필요합니다." }, { status: 401 });
 
   const body = schema.parse(await request.json());
+  const { completedDay, ...resultBody } = body;
   const db = getDb();
   const [saved] = await db
     .insert(savedResults)
     .values({
       userId,
-      ...body
+      ...resultBody
     })
     .onConflictDoUpdate({
       target: savedResults.generationSessionId,
       set: {
-        finalTitle: body.finalTitle,
-        finalThumbnailText: body.finalThumbnailText,
-        titleCandidates: body.titleCandidates,
-        thumbnailCandidates: body.thumbnailCandidates,
-        videoOutline: body.videoOutline,
-        sevenDayPlan: body.sevenDayPlan,
-        memo: body.memo,
+        finalTitle: resultBody.finalTitle,
+        finalThumbnailText: resultBody.finalThumbnailText,
+        titleCandidates: resultBody.titleCandidates,
+        thumbnailCandidates: resultBody.thumbnailCandidates,
+        videoOutline: resultBody.videoOutline,
+        sevenDayPlan: resultBody.sevenDayPlan,
+        memo: resultBody.memo,
         isDeleted: false,
         updatedAt: new Date()
       }
@@ -61,13 +63,13 @@ export async function POST(request: Request) {
 
   await db
     .update(generationSessions)
-    .set({ userId, status: "saved", updatedAt: new Date() })
-    .where(eq(generationSessions.id, body.generationSessionId));
+    .set({ userId, status: `day-${completedDay ?? 1}`, updatedAt: new Date() })
+    .where(eq(generationSessions.id, resultBody.generationSessionId));
 
   const [generationSession] = await db
     .select({ diagnosisId: generationSessions.diagnosisId })
     .from(generationSessions)
-    .where(eq(generationSessions.id, body.generationSessionId))
+    .where(eq(generationSessions.id, resultBody.generationSessionId))
     .limit(1);
 
   if (generationSession) {

@@ -103,6 +103,16 @@ a {
   color: #ccfbf1;
 }
 
+.day-nav-item.completed {
+  border-color: rgba(34, 197, 94, 0.42);
+  color: #bbf7d0;
+}
+
+.day-nav-item.completed::after {
+  content: "✓";
+  margin-left: 6px;
+}
+
 .day-nav-item.disabled {
   color: #626978;
   cursor: default;
@@ -1219,7 +1229,7 @@ h3 {
 .mbti-detail-grid {
   display: grid;
   gap: 14px;
-  grid-template-columns: 1.35fr 1fr;
+  grid-template-columns: 1fr;
   margin-top: 36px;
   text-align: left;
 }
@@ -1255,13 +1265,14 @@ h3 {
 .mbti-detail-category {
   background: rgba(45, 212, 191, 0.10);
   border-color: rgba(45, 212, 191, 0.42);
+  padding: 24px 28px;
 }
 
 .mbti-detail-category p {
   color: #ccfbf1;
-  font-size: 22px;
+  font-size: clamp(26px, 3.2vw, 38px);
   font-weight: 900;
-  line-height: 1.5;
+  line-height: 1.35;
 }
 
 .mbti-detail-first-video strong {

@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { ExternalLink, FileText, Film } from "lucide-react";
+import { markCompletedDay } from "@/lib/flow/progress";
 
 export default function EditPage() {
+  const diagnosis = readJson<{ generationSessionId?: string } | null>("creatorboard_diagnosis", null);
+
   return (
     <main className="wrap">
 
@@ -216,11 +219,27 @@ export default function EditPage() {
         <Link className="btn btn-secondary" href="/shooting">
           ← DAY 5로 돌아가기
         </Link>
-        <Link className="btn btn-primary btn-large" href="/upload">
+        <Link
+          className="btn btn-primary btn-large"
+          href="/upload"
+          onClick={() => markCompletedDay(6, diagnosis?.generationSessionId)}
+        >
           DAY 7 업로드 문장 보기 →
         </Link>
       </div>
 
     </main>
   );
+}
+
+function readJson<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  const raw = localStorage.getItem(key);
+  if (!raw) return fallback;
+
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
 }

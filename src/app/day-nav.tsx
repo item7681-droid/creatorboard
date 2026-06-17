@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { cacheCompletedDay, completedDayFromStatus, FLOW_PROGRESS_EVENT, readCachedCompletedDay } from "@/lib/flow/progress";
 
 const days = [
   { day: 1, href: "/diagnosis/result" },
@@ -15,6 +17,36 @@ const days = [
 
 export function DayNav() {
   const pathname = usePathname();
+  const [completedDay, setCompletedDay] = useState(0);
+
+  useEffect(() => {
+    setCompletedDay(readCachedCompletedDay());
+
+    async function loadProgress() {
+      const response = await fetch("/api/flow/current");
+      if (!response.ok) return;
+      const data = await response.json();
+      const serverDay =
+        typeof data.progress?.completedDay === "number"
+          ? data.progress.completedDay
+          : completedDayFromStatus(data.diagnosis?.status);
+      cacheCompletedDay(serverDay);
+      setCompletedDay(readCachedCompletedDay());
+    }
+
+    function handleProgress(event: Event) {
+      const detail = (event as CustomEvent<{ completedDay?: number }>).detail;
+      setCompletedDay(detail?.completedDay ?? readCachedCompletedDay());
+    }
+
+    loadProgress();
+    window.addEventListener(FLOW_PROGRESS_EVENT, handleProgress);
+    window.addEventListener("storage", handleProgress);
+    return () => {
+      window.removeEventListener(FLOW_PROGRESS_EVENT, handleProgress);
+      window.removeEventListener("storage", handleProgress);
+    };
+  }, []);
 
   return (
     <div className="day-nav" aria-label="7일 실행 단계">
@@ -28,6 +60,7 @@ export function DayNav() {
           (item.day === 5 && pathname === "/shooting") ||
           (item.day === 6 && pathname === "/edit") ||
           (item.day === 7 && pathname === "/upload");
+        const completed = item.day <= completedDay;
 
         if (!item.href) {
           return (
@@ -38,7 +71,7 @@ export function DayNav() {
         }
 
         return (
-          <Link className={`day-nav-item ${active ? "active" : ""}`} href={item.href} key={item.day}>
+          <Link className={`day-nav-item ${active ? "active" : ""} ${completed ? "completed" : ""}`} href={item.href} key={item.day}>
             {label}
           </Link>
         );

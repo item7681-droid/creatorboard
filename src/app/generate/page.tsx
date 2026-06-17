@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Wand2 } from "lucide-react";
+import { cacheCompletedDay } from "@/lib/flow/progress";
 import type { GeneratedPlan } from "@/lib/templates/profit";
 
 export default function GeneratePage() {
@@ -39,6 +40,7 @@ export default function GeneratePage() {
         if (!data.generated) throw new Error(data.message ?? "생성 실패");
         setGenerated(data.generated);
         localStorage.setItem("creatorboard_generated", JSON.stringify(data.generated));
+        cacheCompletedDay(2);
       })
       .catch((error) => alert(error.message))
       .finally(() => setLoading(false));

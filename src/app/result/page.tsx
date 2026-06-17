@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { Check, Copy, ExternalLink, FileText, Mic, Puzzle } from "lucide-react";
+import { markCompletedDay } from "@/lib/flow/progress";
 import type { GeneratedPlan } from "@/lib/templates/profit";
 import type { VideoCandidate } from "@/lib/youtube/types";
 
@@ -221,7 +222,11 @@ export default function ResultPage() {
       </section>
 
       <div className="actions actions-center">
-        <Link className="btn btn-primary btn-large" href="/shooting">
+        <Link
+          className="btn btn-primary btn-large"
+          href="/shooting"
+          onClick={() => markCompletedDay(4, diagnosis?.generationSessionId)}
+        >
           DAY 5 스토리보드 & 촬영
         </Link>
       </div>

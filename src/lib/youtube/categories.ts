@@ -8,11 +8,11 @@ export const categoryLabels: Record<string, string> = {
   "20": "게임",
   "22": "일상/경험담",
   "23": "연예/반응/이슈",
-  "24": "연예/반응/이슈",
+  "24": "취향/엔터테인먼트",
   "25": "뉴스/사회 이슈",
-  "26": "부업/재테크/방법론",
+  "26": "실용 노하우/방법론",
   "27": "자기계발/공부",
-  "28": "제품 비교/리뷰",
+  "28": "기술/도구 분석",
   "29": "뉴스/사회 이슈"
 };
 
@@ -35,8 +35,8 @@ export const categoryEnglishLabels: Record<string, string> = {
 };
 
 export function getCategoryLabel(categoryId?: string, fallback?: string) {
-  if (!categoryId) return fallback ?? "추천 분류";
-  return categoryLabels[categoryId] ?? fallback ?? "추천 분류";
+  if (!categoryId) return fallback ?? "대표 분류";
+  return categoryLabels[categoryId] ?? fallback ?? "대표 분류";
 }
 
 export function getCategoryDisplayLabel(categoryId?: string, fallback?: string) {

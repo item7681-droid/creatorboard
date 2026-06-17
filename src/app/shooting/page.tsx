@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Check, Copy, ExternalLink, FileText, Smartphone } from "lucide-react";
+import { markCompletedDay } from "@/lib/flow/progress";
 
 
 
 export default function ShootingPage() {
   const finalTitle = readText("creatorboard_final_title");
   const finalThumbnailText = readText("creatorboard_final_thumbnail");
+  const diagnosis = readJson<{ generationSessionId?: string } | null>("creatorboard_diagnosis", null);
 
   const [copied, setCopied] = useState<"storyboard" | "thumbnail" | null>(null);
 
@@ -183,7 +185,11 @@ export default function ShootingPage() {
         <Link className="btn btn-secondary" href="/result">
           ← DAY 4로 돌아가기
         </Link>
-        <Link className="btn btn-primary btn-large" href="/edit">
+        <Link
+          className="btn btn-primary btn-large"
+          href="/edit"
+          onClick={() => markCompletedDay(5, diagnosis?.generationSessionId)}
+        >
           DAY 6 편집하기 →
         </Link>
       </div>
@@ -195,6 +201,18 @@ export default function ShootingPage() {
 function readText(key: string) {
   if (typeof window === "undefined") return "";
   return localStorage.getItem(key) ?? "";
+}
+
+function readJson<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  const raw = localStorage.getItem(key);
+  if (!raw) return fallback;
+
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
 }
 
 function buildStoryboardPrompt(title: string, thumbnailText: string) {

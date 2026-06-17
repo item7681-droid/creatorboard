@@ -5,6 +5,7 @@ import { authOptions, getUserIdByEmail } from "@/lib/auth/options";
 import { getDb } from "@/lib/db";
 import { diagnoses, generationSessions } from "@/lib/db/schema";
 import { hasEnv } from "@/lib/env";
+import { completedDayFromStatus } from "@/lib/flow/progress";
 import { getGuestSessionId } from "@/lib/session/guest";
 
 export async function GET() {
@@ -52,7 +53,12 @@ export async function GET() {
     return NextResponse.json({ diagnosis: null }, { status: 404 });
   }
 
-  return NextResponse.json({ diagnosis });
+  return NextResponse.json({
+    diagnosis,
+    progress: {
+      completedDay: completedDayFromStatus(diagnosis.status)
+    }
+  });
 }
 
 async function getAuthedUserId() {

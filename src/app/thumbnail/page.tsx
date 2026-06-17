@@ -3,11 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ExternalLink, FileText, ImageIcon } from "lucide-react";
+import { markCompletedDay } from "@/lib/flow/progress";
 import type { VideoCandidate } from "@/lib/youtube/types";
 
 export default function ThumbnailPage() {
   const finalTitle = readText("creatorboard_final_title");
   const finalThumbnailText = readText("creatorboard_final_thumbnail");
+  const diagnosis = readJson<{ generationSessionId?: string } | null>("creatorboard_diagnosis", null);
   const selectedIds = readJson<string[]>("creatorboard_selected_videos", []);
   const candidates = readJson<VideoCandidate[]>("creatorboard_video_candidates", []);
   const selectedVideos = selectedIds
@@ -108,7 +110,11 @@ export default function ThumbnailPage() {
       </section>
 
       <div className="actions actions-center">
-        <Link className="btn btn-primary btn-large" href="/result">
+        <Link
+          className="btn btn-primary btn-large"
+          href="/result"
+          onClick={() => markCompletedDay(3, diagnosis?.generationSessionId)}
+        >
           DAY 4 2분 구성안 보기
         </Link>
       </div>

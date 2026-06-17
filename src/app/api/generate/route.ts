@@ -56,7 +56,7 @@ export async function POST(request: Request) {
   );
   await db
     .update(generationSessions)
-    .set({ status: "generated", updatedAt: new Date() })
+    .set({ status: "day-2", updatedAt: new Date() })
     .where(eq(generationSessions.id, body.generationSessionId));
 
   const generated = generateProfitTemplate(videos);

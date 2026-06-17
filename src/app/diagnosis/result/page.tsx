@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Copy, Target, BookmarkPlus, LogIn } from "lucide-react";
 import { useSession, signIn } from "next-auth/react";
+import { cacheCompletedDay, markCompletedDay } from "@/lib/flow/progress";
 import { getCategoryLabel } from "@/lib/youtube/categories";
 
 type MBTIEntry = {
@@ -55,6 +56,9 @@ export default function DiagnosisResultPage() {
       }
 
       localStorage.setItem("creatorboard_diagnosis", JSON.stringify(data.diagnosis));
+      if (typeof data.progress?.completedDay === "number") {
+        cacheCompletedDay(data.progress.completedDay);
+      }
       setDiagnosis(data.diagnosis);
     }
 
@@ -114,7 +118,8 @@ export default function DiagnosisResultPage() {
         thumbnailCandidates,
         videoOutline: sevenDayPlan.map((day) => `DAY ${day.day}. ${day.title}: ${day.task}`),
         sevenDayPlan,
-        memo: profilePrompt
+        memo: profilePrompt,
+        completedDay: 1
       })
     });
 
@@ -125,10 +130,12 @@ export default function DiagnosisResultPage() {
     }
 
     setSaveState("saved");
+    cacheCompletedDay(1);
   }
 
-  function goToVideos() {
-    localStorage.setItem("creatorboard_completed_days", JSON.stringify([1]));
+  async function goToVideos() {
+    if (!diagnosis) return;
+    await markCompletedDay(1, diagnosis.generationSessionId);
     router.push("/videos");
   }
 
@@ -147,10 +154,6 @@ export default function DiagnosisResultPage() {
             <div className="mbti-detail-card mbti-detail-category">
               <span className="mbti-detail-label">추천 카테고리</span>
               <p>{entry.categories}</p>
-            </div>
-            <div className="mbti-detail-card">
-              <span className="mbti-detail-label">잘 맞는 포맷</span>
-              <p>{entry.formats}</p>
             </div>
           </div>
         </section>
@@ -201,7 +204,7 @@ export default function DiagnosisResultPage() {
           {koreanCategory} 콘텐츠를 {diagnosis.interestTopic} 방식으로 풀어보세요.
         </h2>
         <div className="category-result">
-          <span>추천 분류</span>
+          <span>대표 분류</span>
           <strong>{koreanCategory}</strong>
         </div>
         <p className="lead">
