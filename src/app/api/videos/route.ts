@@ -6,14 +6,14 @@ const schema = z.object({
   keywords: z.array(z.string()).min(1),
   categoryId: z.string().optional(),
   youtubeApiKey: z.string().optional(),
-  forceRefresh: z.boolean().optional()
+  cacheOnly: z.boolean().optional()
 });
 
 export async function POST(request: Request) {
   try {
     const body = schema.parse(await request.json());
-    const videos = await getVideoCandidates(body.keywords, 50, body.categoryId, body.youtubeApiKey, {
-      forceRefresh: body.forceRefresh ?? false
+    const videos = await getVideoCandidates(body.keywords, 100, body.categoryId, body.youtubeApiKey, {
+      cacheOnly: body.cacheOnly ?? false
     });
     return NextResponse.json({ videos });
   } catch (error) {

@@ -1,7 +1,6 @@
 import { and, desc, eq, gt, inArray } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { videoCache } from "@/lib/db/schema";
-import { getCuratedVideos } from "./curated";
 import type { VideoCandidate } from "./types";
 
 const CACHE_DAYS = 7;
@@ -65,7 +64,7 @@ export async function getVideoCandidates(
   limit = 15,
   categoryId?: string,
   apiKeyOverride?: string,
-  options: { forceRefresh?: boolean } = {}
+  options: { cacheOnly?: boolean } = {}
 ): Promise<VideoCandidate[]> {
   const keyword = keywords[0] ?? "초보 유튜브";
   const apiKey = normalizeApiKey(apiKeyOverride) ?? normalizeApiKey(process.env.YOUTUBE_API_KEY);
@@ -76,57 +75,6 @@ export async function getVideoCandidates(
   try {
     const db = getDb();
     const now = new Date();
-
-    // forceRefresh: 새 데이터 fetch 성공 시에만 캐시 교체.
-    // 실패(할당량 초과 등)하면 기존 캐시(만료 무관)를 그대로 반환.
-    if (options.forceRefresh && apiKey) {
-      try {
-        const fetched = await fetchYouTubeCandidates(keywords, 50, categoryId, apiKey);
-        if (fetched.length > 0) {
-          const expiresAt = new Date(Date.now() + CACHE_DAYS * 24 * 60 * 60 * 1000);
-          // fetch 성공 후에만 기존 캐시 삭제 → 새 데이터 삽입
-          await db.delete(videoCache).where(eq(videoCache.keyword, cacheKey));
-          await db
-            .insert(videoCache)
-            .values(
-              fetched.map((video) => ({
-                keyword: cacheKey,
-                youtubeVideoId: video.youtubeVideoId,
-                title: video.title,
-                thumbnailUrl: video.thumbnailUrl,
-                thumbnailText: video.thumbnailText,
-                channelTitle: video.channelTitle,
-                viewCount: video.viewCount,
-                likeCount: video.likeCount,
-                commentCount: video.commentCount,
-                publishedAt: new Date(video.publishedAt),
-                durationSeconds: video.durationSeconds,
-                rawJson: video,
-                expiresAt
-              }))
-            )
-            .onConflictDoNothing();
-        }
-        // 새로 저장된 캐시 반환
-        const rows = await db
-          .select()
-          .from(videoCache)
-          .where(eq(videoCache.keyword, cacheKey))
-          .orderBy(desc(videoCache.viewCount))
-          .limit(limit);
-        return rows.map(mapCacheRow);
-      } catch {
-        // YouTube API 실패(할당량 초과 등) → 기존 캐시로 폴백 (만료 무관)
-        console.warn("[videoCache] forceRefresh fetch 실패 — 기존 캐시로 폴백");
-        const fallback = await db
-          .select()
-          .from(videoCache)
-          .where(eq(videoCache.keyword, cacheKey))
-          .orderBy(desc(videoCache.viewCount))
-          .limit(limit);
-        return fallback.map(mapCacheRow);
-      }
-    }
 
     // 유효한 캐시 확인
     const cached = await db
@@ -140,9 +88,19 @@ export async function getVideoCandidates(
       return cached.map(mapCacheRow);
     }
 
+    if (options.cacheOnly) {
+      const fallback = await db
+        .select()
+        .from(videoCache)
+        .where(eq(videoCache.keyword, cacheKey))
+        .orderBy(desc(videoCache.viewCount))
+        .limit(limit);
+      return fallback.map(mapCacheRow);
+    }
+
     // 캐시 미스 → YouTube API 호출
     if (!apiKey) return [];
-    const fetched = await fetchYouTubeCandidates(keywords, 50, categoryId, apiKey);
+    const fetched = await fetchYouTubeCandidates(keywords, limit, categoryId, apiKey);
 
     if (fetched.length > 0) {
       const expiresAt = new Date(Date.now() + CACHE_DAYS * 24 * 60 * 60 * 1000);
@@ -176,14 +134,10 @@ export async function getVideoCandidates(
       .limit(limit);
 
     return rows.map(mapCacheRow);
-  } catch {
-    // DB 연결 오류 등 → YouTube API 직접 호출 (최후 수단)
-    if (apiKey) {
-      try {
-        return await fetchYouTubeCandidates(keywords, limit, categoryId, apiKey);
-      } catch {
-        return [];
-      }
+  } catch (error) {
+    // YouTube API 오류는 그대로 던져서 호출자에게 전달 (사용자에게 표시)
+    if (error instanceof Error && error.message.includes("YouTube API")) {
+      throw error;
     }
     return [];
   }
@@ -201,7 +155,7 @@ async function fetchYouTubeCandidates(
   categoryId: string | undefined,
   apiKey: string
 ) {
-  const uniqueKeywords = buildSearchKeywords(keywords).slice(0, 4);
+  const uniqueKeywords = buildSearchKeywords(keywords).slice(0, 3);
   const searchKeywords = uniqueKeywords.length > 0 ? uniqueKeywords : ["초보 유튜브"];
   const videos = new Map<string, VideoCandidate>();
 
@@ -212,7 +166,7 @@ async function fetchYouTubeCandidates(
       if (videos.size >= maxResults) return Array.from(videos.values());
     }
 
-    if (categoryId) {
+    if (categoryId && videos.size === 0) {
       const uncategorized = await fetchFromYouTube(searchKeyword, maxResults, undefined, apiKey);
       for (const video of uncategorized) {
         videos.set(video.youtubeVideoId, video);

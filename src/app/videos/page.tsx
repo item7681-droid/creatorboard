@@ -9,7 +9,6 @@ import { getCategoryLabel } from "@/lib/youtube/categories";
 import type { VideoCandidate } from "@/lib/youtube/types";
 
 const CANDIDATE_PAGE_SIZE = 10;
-const LOCAL_SWAP_LIMIT = 5;
 
 type DiagnosisFlow = {
   knownField: string;
@@ -27,7 +26,6 @@ export default function VideosPage() {
   const [hasSavedApiKey, setHasSavedApiKey] = useState(false);
   const [diagnosis, setDiagnosis] = useState<DiagnosisFlow | null>(null);
   const [candidateOffset, setCandidateOffset] = useState(0);
-  const [candidateSwapCount, setCandidateSwapCount] = useState(0);
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedKey = localStorage.getItem("creatorboard_youtube_api_key") ?? "";
@@ -36,13 +34,12 @@ export default function VideosPage() {
     }
   }, []);
 
-  const loadVideos = useCallback(async (key: string, forceRefresh = false) => {
+  const loadVideos = useCallback(async (key: string, cacheOnly = false) => {
     if (!diagnosis) return;
     if (!key.trim()) {
       setVideos([]);
       setSelected([]);
       setCandidateOffset(0);
-      setCandidateSwapCount(0);
       setLoading(false);
       return;
     }
@@ -50,7 +47,6 @@ export default function VideosPage() {
     setLoading(true);
     setSelected([]);
     setCandidateOffset(0);
-    setCandidateSwapCount(0);
     try {
       const response = await fetch("/api/videos", {
         method: "POST",
@@ -59,20 +55,20 @@ export default function VideosPage() {
           keywords: diagnosis.recommendedKeywords,
           categoryId: diagnosis.categoryId,
           youtubeApiKey: key,
-          forceRefresh
+          cacheOnly
         })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? `응답 오류: ${response.status}`);
       const videos = data.videos ?? [];
       setVideos(videos);
-      // forceRefresh였는데 새 영상 없이 기존 캐시가 반환된 경우 (할당량 초과 폴백)
-      if (forceRefresh && videos.length === 0) {
-        alert("YouTube API 할당량을 모두 사용했습니다.\n내일 다시 시도하거나 Google Cloud Console에서 사용량을 확인해주세요.");
-      }
     } catch (error) {
       console.error("영상 로딩 실패:", error);
       setVideos([]);
+      if (isQuotaExceededError(error)) {
+        alert(`YouTube API 오늘 사용량을 모두 사용해서 영상을 불러오지 못했습니다.\n\n사용량은 Google 기준 Pacific Time 자정에 다시 사용할 수 있습니다.\n한국시간 기준으로는 보통 오후 4시, 겨울에는 오후 5시 이후 다시 시도해주세요.`);
+        return;
+      }
       alert(`영상을 불러오지 못했습니다.\n\n${String(error)}\n\nAPI 키가 올바른지, YouTube Data API v3가 활성화되어 있는지 확인해주세요.`);
     } finally {
       setLoading(false);
@@ -111,7 +107,7 @@ export default function VideosPage() {
 
   useEffect(() => {
     if (!diagnosis) return;
-    loadVideos(localStorage.getItem("creatorboard_youtube_api_key") ?? "");
+    loadVideos(localStorage.getItem("creatorboard_youtube_api_key") ?? "", true);
   }, [diagnosis, loadVideos]);
 
   function saveApiKey(event: FormEvent<HTMLFormElement>) {
@@ -127,13 +123,9 @@ export default function VideosPage() {
   }
 
   function showOtherCandidates() {
-    if (candidateSwapCount >= LOCAL_SWAP_LIMIT - 1 || videos.length <= CANDIDATE_PAGE_SIZE) {
-      loadVideos(apiKey, true);
-      return;
-    }
+    if (videos.length <= CANDIDATE_PAGE_SIZE) return;
 
     setSelected([]);
-    setCandidateSwapCount((current) => current + 1);
     setCandidateOffset((current) => (current + CANDIDATE_PAGE_SIZE) % videos.length);
   }
 
@@ -282,6 +274,23 @@ export default function VideosPage() {
         <div className="panel panel-pad">
           <RefreshCw size={18} /> 영상 후보를 불러오는 중입니다.
         </div>
+      ) : videos.length === 0 ? (
+        <div className="panel panel-pad" style={{ textAlign: "center", padding: "48px 24px" }}>
+          <RefreshCw size={32} style={{ marginBottom: 12, opacity: 0.4 }} />
+          <p style={{ fontSize: "1rem", fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>저장된 영상 후보가 없습니다</p>
+          <p className="muted" style={{ fontSize: "0.875rem", lineHeight: 1.7 }}>
+            아래 버튼을 누를 때만 YouTube API를 호출합니다.<br />
+            한 번 불러온 후보는 DB에 저장되고, 다른 후보 보기는 저장된 후보 안에서만 반복됩니다.
+          </p>
+          <button
+            className="btn btn-secondary"
+            style={{ marginTop: 20 }}
+            onClick={() => loadVideos(apiKey)}
+            type="button"
+          >
+            <RefreshCw size={16} /> YouTube에서 후보 불러오기
+          </button>
+        </div>
       ) : (
         <>
           <section className="selection-guide panel panel-pad">
@@ -389,4 +398,9 @@ function formatDuration(seconds: number) {
   const minutes = Math.floor(safeSeconds / 60);
   const restSeconds = safeSeconds % 60;
   return `${minutes.toString().padStart(2, "0")}:${restSeconds.toString().padStart(2, "0")}`;
+}
+
+function isQuotaExceededError(error: unknown) {
+  const message = String(error).toLowerCase();
+  return message.includes("quota exceeded") || message.includes("429");
 }
