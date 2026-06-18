@@ -149,7 +149,7 @@ p {
 h1 {
   font-size: clamp(32px, 4.5vw, 56px);
   letter-spacing: 0;
-  line-height: 1.1;
+  line-height: 1.35;
 }
 
 h2 {
@@ -1335,7 +1335,7 @@ h3 {
 
 .intro-headline {
   font-size: clamp(26px, 4vw, 44px);
-  line-height: 1.15;
+  line-height: 1.35;
   margin-top: 14px;
 }
 
@@ -1394,10 +1394,11 @@ h3 {
 }
 
 .intro-gain-grid {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 32px;
+  max-width: 680px;
 }
 
 .intro-gain-card {
@@ -1405,8 +1406,8 @@ h3 {
   border: 1px solid var(--line);
   border-radius: 8px;
   display: grid;
-  gap: 10px;
-  padding: 18px;
+  gap: 8px;
+  padding: 22px 24px;
 }
 
 .intro-gain-card span {
@@ -1417,7 +1418,7 @@ h3 {
 
 .intro-gain-card strong {
   color: var(--text);
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.3;
 }
 
