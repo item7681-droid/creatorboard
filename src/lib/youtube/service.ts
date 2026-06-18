@@ -76,9 +76,59 @@ export async function getVideoCandidates(
   try {
     const db = getDb();
     const now = new Date();
-    if (options.forceRefresh) {
-      await db.delete(videoCache).where(eq(videoCache.keyword, cacheKey));
+
+    // forceRefresh: 새 데이터 fetch 성공 시에만 캐시 교체.
+    // 실패(할당량 초과 등)하면 기존 캐시(만료 무관)를 그대로 반환.
+    if (options.forceRefresh && apiKey) {
+      try {
+        const fetched = await fetchYouTubeCandidates(keywords, 50, categoryId, apiKey);
+        if (fetched.length > 0) {
+          const expiresAt = new Date(Date.now() + CACHE_DAYS * 24 * 60 * 60 * 1000);
+          // fetch 성공 후에만 기존 캐시 삭제 → 새 데이터 삽입
+          await db.delete(videoCache).where(eq(videoCache.keyword, cacheKey));
+          await db
+            .insert(videoCache)
+            .values(
+              fetched.map((video) => ({
+                keyword: cacheKey,
+                youtubeVideoId: video.youtubeVideoId,
+                title: video.title,
+                thumbnailUrl: video.thumbnailUrl,
+                thumbnailText: video.thumbnailText,
+                channelTitle: video.channelTitle,
+                viewCount: video.viewCount,
+                likeCount: video.likeCount,
+                commentCount: video.commentCount,
+                publishedAt: new Date(video.publishedAt),
+                durationSeconds: video.durationSeconds,
+                rawJson: video,
+                expiresAt
+              }))
+            )
+            .onConflictDoNothing();
+        }
+        // 새로 저장된 캐시 반환
+        const rows = await db
+          .select()
+          .from(videoCache)
+          .where(eq(videoCache.keyword, cacheKey))
+          .orderBy(desc(videoCache.viewCount))
+          .limit(limit);
+        return rows.map(mapCacheRow);
+      } catch {
+        // YouTube API 실패(할당량 초과 등) → 기존 캐시로 폴백 (만료 무관)
+        console.warn("[videoCache] forceRefresh fetch 실패 — 기존 캐시로 폴백");
+        const fallback = await db
+          .select()
+          .from(videoCache)
+          .where(eq(videoCache.keyword, cacheKey))
+          .orderBy(desc(videoCache.viewCount))
+          .limit(limit);
+        return fallback.map(mapCacheRow);
+      }
     }
+
+    // 유효한 캐시 확인
     const cached = await db
       .select()
       .from(videoCache)
@@ -90,6 +140,7 @@ export async function getVideoCandidates(
       return cached.map(mapCacheRow);
     }
 
+    // 캐시 미스 → YouTube API 호출
     if (!apiKey) return [];
     const fetched = await fetchYouTubeCandidates(keywords, 50, categoryId, apiKey);
 
@@ -126,6 +177,7 @@ export async function getVideoCandidates(
 
     return rows.map(mapCacheRow);
   } catch {
+    // DB 연결 오류 등 → YouTube API 직접 호출 (최후 수단)
     if (apiKey) {
       try {
         return await fetchYouTubeCandidates(keywords, limit, categoryId, apiKey);

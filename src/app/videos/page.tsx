@@ -64,7 +64,12 @@ export default function VideosPage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? `응답 오류: ${response.status}`);
-      setVideos(data.videos ?? []);
+      const videos = data.videos ?? [];
+      setVideos(videos);
+      // forceRefresh였는데 새 영상 없이 기존 캐시가 반환된 경우 (할당량 초과 폴백)
+      if (forceRefresh && videos.length === 0) {
+        alert("YouTube API 할당량을 모두 사용했습니다.\n내일 다시 시도하거나 Google Cloud Console에서 사용량을 확인해주세요.");
+      }
     } catch (error) {
       console.error("영상 로딩 실패:", error);
       setVideos([]);
