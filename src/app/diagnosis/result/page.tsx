@@ -7,7 +7,7 @@ import { useSession, signIn } from "next-auth/react";
 import { cacheCompletedDay, markCompletedDay } from "@/lib/flow/progress";
 import { getCategoryLabel } from "@/lib/youtube/categories";
 
-type MBTIEntry = {
+type ProfileEntry = {
   title: string;
   categories: string;
   formats: string;
@@ -25,7 +25,7 @@ type DiagnosisResult = {
   recommendedKeywords: string[];
   generationSessionId?: string;
   mbtiType?: string;
-  mbtiEntry?: MBTIEntry;
+  mbtiEntry?: ProfileEntry;
 };
 
 export default function DiagnosisResultPage() {
@@ -69,7 +69,6 @@ export default function DiagnosisResultPage() {
     return <main className="wrap"><div className="panel panel-pad">진단 결과를 불러오는 중입니다.</div></main>;
   }
 
-  const mbti = diagnosis.mbtiType;
   const entry = diagnosis.mbtiEntry;
   const koreanCategory = getCategoryLabel(diagnosis.categoryId, diagnosis.knownField);
   const displayKeywords = diagnosis.recommendedKeywords ?? [];
@@ -78,7 +77,7 @@ export default function DiagnosisResultPage() {
 
   const profilePrompt = `당신은 세계 최고 수준의 유튜브 채널 브랜딩 전략가이자 마케팅 전문가입니다.
 
-나는 유튜브를 처음 시작하는 초보 크리에이터입니다.${mbti ? `\n콘텐츠 유형: ${mbti}형 — ${entry?.title}` : ""}
+나는 유튜브를 처음 시작하는 초보 크리에이터입니다.${entry ? `\n콘텐츠 유형: ${entry.title}` : ""}
 채널 주제: "${firstKeyword}"
 콘텐츠 방향: ${koreanCategory}
 스타일: 전문가처럼 보이기보다 처음 시작하는 사람이 꾸준히 운영할 수 있는 친근한 느낌
@@ -153,11 +152,10 @@ export default function DiagnosisResultPage() {
   return (
     <main className="wrap">
 
-      {/* ── MBTI 유형 결과 ── */}
-      {mbti && entry && (
+      {/* ── 유형 결과 ── */}
+      {entry && (
         <section className="mbti-result-hero">
           <p className="eyebrow">진단 결과</p>
-          <div className="mbti-type-badge">{mbti}</div>
           <h1 className="mbti-type-title">{entry.title}</h1>
           <p className="mbti-concept">&ldquo;{entry.concept}&rdquo;</p>
 
@@ -194,8 +192,8 @@ export default function DiagnosisResultPage() {
         </button>
       </div>
 
-      {/* MBTI 없는 구버전 호환 */}
-      {!mbti && (
+      {/* 구버전 호환 */}
+      {!entry && (
         <section className="section-head">
           <div>
             <p className="eyebrow">진단 결과</p>
@@ -245,6 +243,35 @@ export default function DiagnosisResultPage() {
           </div>
         )}
       </section>
+
+      {/* ── 벤치마킹 채널 탐색 ── */}
+      {entry && (
+        <section className="panel panel-pad">
+          <p className="eyebrow">레퍼런스 채널 탐색</p>
+          <h2>이런 채널들을 벤치마킹해보세요</h2>
+          <p className="lead" style={{ maxWidth: "none", marginBottom: 20 }}>
+            아래 키워드로 유튜브를 검색해 비슷한 방향의 채널 3개를 골라보세요.<br />
+            제목 구성·썸네일 스타일·업로드 주기를 분석하면 첫 영상 기획이 훨씬 쉬워집니다.
+          </p>
+          <div className="benchmark-grid">
+            {entry.categories.split(/,\s*/).map((cat, i) => (
+              <a
+                key={i}
+                className="benchmark-card"
+                href={`https://www.youtube.com/results?search_query=${encodeURIComponent(cat)}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span>{cat}</span>
+                <ExternalLink size={14} />
+              </a>
+            ))}
+          </div>
+          <p style={{ marginTop: 16, color: "var(--amber)", fontSize: "0.875rem", lineHeight: 1.6 }}>
+            💡 구독자 1만 미만 채널도 꼭 확인하세요. 조회수가 높은 영상 패턴이 지금 시작하기에 가장 현실적인 레퍼런스입니다.
+          </p>
+        </section>
+      )}
 
       {/* ── DAY 1 프로필 설정 ── */}
       <section className="panel panel-pad profile-guide">

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ClipboardList } from "lucide-react";
+import { buildKeywordsFromProfile } from "@/lib/youtube/keywords";
 
 // ─── 타입 ────────────────────────────────────────────────
 
@@ -23,7 +24,7 @@ type Scores = {
   JP: { J: number; P: number };
 };
 
-type MBTIEntry = {
+type ProfileEntry = {
   title: string;
   categories: string;
   formats: string;
@@ -195,24 +196,6 @@ const questions: Question[] = [
   },
   // ── 보너스 4문항 ──
   {
-    title: "카메라에 내 얼굴이 나오는 것은?",
-    subtitle: "최종 카테고리를 좁히는 질문입니다.",
-    bonusField: "facePreference",
-    options: [
-      { label: "가능하다 — 브이로그, 토크, 인터뷰, 리액션이 잘 맞아", value: "얼굴 출연 가능" },
-      { label: "어렵다 — 정보형, 리뷰형, 화면녹화, 내레이션이 더 편해", value: "얼굴 없이 하고 싶다" },
-    ],
-  },
-  {
-    title: "촬영보다 편집이 더 좋은가?",
-    subtitle: "최종 카테고리를 좁히는 질문입니다.",
-    bonusField: "editPref",
-    options: [
-      { label: "촬영이 좋다 — 일상, 체험, 여행, 먹방", value: "촬영" },
-      { label: "편집이 좋다 — 해설, 분석, 쇼츠, 에세이", value: "편집" },
-    ],
-  },
-  {
     title: "전문성이 있는 분야가 있는가?",
     subtitle: "최종 카테고리를 좁히는 질문입니다.",
     bonusField: "expertise",
@@ -234,9 +217,9 @@ const questions: Question[] = [
   },
 ];
 
-// ─── MBTI 결과 테이블 ─────────────────────────────────────
+// ─── 성향 결과 테이블 ─────────────────────────────────────
 
-const MBTI_TABLE: Record<string, MBTIEntry> = {
+const PROFILE_TABLE: Record<string, ProfileEntry> = {
   ISTJ: {
     title: "체계적인 정보·리뷰형",
     categories: "제품 리뷰, 사용법, 비교 분석, 선택 기준, 생활 도구",
@@ -369,7 +352,7 @@ const MBTI_TABLE: Record<string, MBTIEntry> = {
 
 // ─── 점수 계산 ────────────────────────────────────────────
 
-function calcMBTI(answers: Record<number, string>): string {
+function calcProfileCode(answers: Record<number, string>): string {
   const scores: Scores = {
     IE: { I: 0, E: 0 },
     SN: { S: 0, N: 0 },
@@ -399,7 +382,8 @@ function calcMBTI(answers: Record<number, string>): string {
 // ─── 컴포넌트 ─────────────────────────────────────────────
 
 const MAIN_COUNT = 16;
-const TOTAL = questions.length; // 20
+const TOTAL = questions.length;
+const BONUS_COUNT = TOTAL - MAIN_COUNT;
 
 export default function DiagnosisPage() {
   const router = useRouter();
@@ -426,11 +410,8 @@ export default function DiagnosisPage() {
 
   async function submit() {
     setLoading(true);
-    const mbtiType = calcMBTI(answers);
-    const entry = MBTI_TABLE[mbtiType] ?? MBTI_TABLE["ISFJ"];
-
-    const bonusFace = answers[16] ?? "얼굴 없이 하고 싶다";
-    const bonusTime = answers[17] === "촬영" ? "2~3시간" : "1~2시간";
+    const mbtiType = calcProfileCode(answers);
+    const entry = PROFILE_TABLE[mbtiType] ?? PROFILE_TABLE["ISFJ"];
 
     const payload = {
       reason: "부수익을 만들고 싶다",
@@ -438,8 +419,8 @@ export default function DiagnosisPage() {
       knownField: entry.knownField,
       categoryId: entry.categoryId,
       interestTopic: entry.interestTopic,
-      facePreference: bonusFace,
-      availableTime: bonusTime,
+      facePreference: "첫 페이지 안내 조건 충족",
+      availableTime: "매일 최소 1시간",
       avoidTopic: "",
       shootingBurden: 3,
       mbtiType,
@@ -456,7 +437,7 @@ export default function DiagnosisPage() {
       const recommendedKeywords =
         (data.recommendedKeywords as string[] | undefined)?.length
           ? data.recommendedKeywords
-          : buildKeywordsFromMBTI(mbtiType, entry.categories.split(/,\s*/), entry.interestTopic);
+          : buildKeywordsFromProfile(mbtiType, entry.categories.split(/,\s*/), entry.interestTopic);
       localStorage.setItem(
         "creatorboard_diagnosis",
         JSON.stringify({ ...payload, ...data, recommendedKeywords, mbtiType, mbtiEntry: entry, answers, categoryId: entry.categoryId })
@@ -472,7 +453,7 @@ export default function DiagnosisPage() {
           answers,
           diagnosisId: `demo-${now}`,
           generationSessionId: `demo-session-${now}`,
-          recommendedKeywords: buildKeywordsFromMBTI(mbtiType, entry.categories.split(/,\s*/), entry.interestTopic),
+          recommendedKeywords: buildKeywordsFromProfile(mbtiType, entry.categories.split(/,\s*/), entry.interestTopic),
           demoMode: true,
         })
       );
@@ -502,7 +483,7 @@ export default function DiagnosisPage() {
           <span />
         )}
         <div className="diag-header-right">
-          {isBonus && <span className="diag-bonus-badge">보너스 {step - MAIN_COUNT + 1}/4</span>}
+          {isBonus && <span className="diag-bonus-badge">보너스 {step - MAIN_COUNT + 1}/{BONUS_COUNT}</span>}
           <span className="diag-counter">{step + 1} / {TOTAL}</span>
         </div>
       </div>

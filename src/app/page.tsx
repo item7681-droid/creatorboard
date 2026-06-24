@@ -8,10 +8,10 @@ export default function HomePage() {
       {/* ── 히어로 ── */}
       <section className="hero">
         <div>
-          <p className="eyebrow">20문항으로 찾는 내 채널 주제</p>
+          <p className="eyebrow">18문항으로 찾는 내 채널 주제</p>
           <h1>
             어떤 유튜브를 해야 할지 막막한가요?<br />
-            당신의 성격(MBTI)이 곧 가장 완벽한 콘텐츠가 됩니다.
+            당신의 콘텐츠 성향이 곧 가장 현실적인 시작점이 됩니다.
           </h1>
           <p className="lead">
             남들의 화려한 결과물과 비교하며 시작을 미루지 마세요.<br />
@@ -19,8 +19,13 @@ export default function HomePage() {
           </p>
           <p className="lead" style={{ marginTop: 8 }}>
             당신이 바로 찍을 수 있고, 오래 할 수 있는 주제를 찾습니다.<br />
-            MBTI 성향 진단으로 수익형 유튜브 주제를 좁히고, 뜨는 영상 3개를 조합해 제목·썸네일·구성안·7일 플랜까지 만듭니다.
+            콘텐츠 성향 진단으로 수익형 유튜브 주제를 좁히고, 뜨는 영상 3개를 조합해 제목·썸네일·구성안·7일 플랜까지 만듭니다.
           </p>
+          <div className="hero-prereqs">
+            <span className="prereq-chip">✓ 매일 최소 1시간 투자</span>
+            <span className="prereq-chip">✓ 스마트폰 보유</span>
+            <span className="prereq-chip">✓ PC 보유</span>
+          </div>
         </div>
       </section>
 
@@ -116,7 +121,7 @@ export default function HomePage() {
         </div>
         <div className="actions" style={{ marginTop: 40, justifyContent: "center" }}>
           <Link className="btn btn-primary btn-large" href="/diagnosis">
-            1분 만에 내 MBTI 맞춤 채널 주제 알아보기 <ArrowRight size={18} />
+            1분 만에 내 맞춤 채널 주제 알아보기 <ArrowRight size={18} />
           </Link>
         </div>
       </section>

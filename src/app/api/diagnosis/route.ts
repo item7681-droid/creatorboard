@@ -4,7 +4,7 @@ import { getDb } from "@/lib/db";
 import { diagnoses, generationSessions } from "@/lib/db/schema";
 import { hasEnv } from "@/lib/env";
 import { getOrCreateGuestSessionId } from "@/lib/session/guest";
-import { buildKeywordsFromMBTI } from "@/lib/youtube/keywords";
+import { buildKeywordsFromProfile } from "@/lib/youtube/keywords";
 
 const schema = z.object({
   reason: z.string().min(1),
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   };
   const sessionId = await getOrCreateGuestSessionId();
   const categoryPool = body.categories ? body.categories.split(/,\s*/) : [];
-  const keywords = buildKeywordsFromMBTI(body.mbtiType ?? "ISFJ", categoryPool, body.interestTopic);
+  const keywords = buildKeywordsFromProfile(body.mbtiType ?? "ISFJ", categoryPool, body.interestTopic);
 
   if (!hasEnv("DATABASE_URL")) {
     const now = Date.now();

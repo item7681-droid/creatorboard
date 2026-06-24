@@ -109,7 +109,7 @@ a {
 }
 
 .day-nav-item.completed::after {
-  content: "✓";
+  content: "OK";
   margin-left: 6px;
 }
 
@@ -1013,7 +1013,7 @@ h3 {
   -webkit-line-clamp: 2;
 }
 
-/* ── Diagnosis step UI ── */
+/* ?? Diagnosis step UI ?? */
 
 .diag-progress-bar {
   background: var(--line);
@@ -1158,7 +1158,7 @@ h3 {
   }
 }
 
-/* ── Save Banner ── */
+/* ?? Save Banner ?? */
 
 .save-banner {
   align-items: center;
@@ -1213,7 +1213,7 @@ h3 {
   }
 }
 
-/* ── MBTI Result ── */
+/* ?? Profile Result ?? */
 
 .mbti-result-hero {
   border-bottom: 1px solid var(--line);
@@ -1324,7 +1324,22 @@ h3 {
   }
 }
 
-/* ── Intro sections ── */
+/* ?? Hero prereqs ?? */
+
+.hero-prereqs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.prereq-chip {
+  color: var(--mint);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+/* ?? Intro sections ?? */
 
 .intro-manifesto,
 .intro-why,
@@ -1447,7 +1462,7 @@ h3 {
   color: var(--text);
 }
 
-/* ── DAY 5 스토리보드 ── */
+/* ?? DAY 5 ?ㅽ넗由щ낫???? */
 
 .storyboard-grid {
   display: grid;
@@ -1511,7 +1526,7 @@ h3 {
   outline: none;
 }
 
-/* ── DAY 5 촬영 체크리스트 ── */
+/* ?? DAY 5 珥ъ쁺 泥댄겕由ъ뒪???? */
 
 .shooting-checklist {
   display: grid;
